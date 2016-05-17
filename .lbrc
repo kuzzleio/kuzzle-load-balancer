@@ -1,0 +1,16 @@
+{
+  "protocolPlugins": {
+    "kuzzle-plugin-socketio": {
+      "activated": true,
+      "config": {
+        "port": 7512,
+        "room": "kuzzle"
+      }
+    }
+  },
+  "serverTimeout": 10000,
+  "serverMode": "failover",
+  "serverOptions": {
+    "port": 7331
+  }
+}
