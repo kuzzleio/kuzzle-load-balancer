@@ -42,7 +42,7 @@ if (Object.keys(protocolPlugins).length > 0) {
       }
     });
 
-    if (context.pluginStore.count()) {
+    if (context.pluginStore.count() === 0) {
       console.error('No plugin has been initialized properly. We shutdown.');
       process.exit(1);
     }

@@ -1,5 +1,7 @@
 {
+  // Protocol plugins configuration
   "protocolPlugins": {
+    // Default plugin to communicate with the load balancer
     "kuzzle-plugin-socketio": {
       "activated": true,
       "config": {
@@ -9,7 +11,10 @@
     }
   },
   "serverTimeout": 10000,
+  // Server mode to choose between "failover" and "round-robin"
+  // Default: failover
   "serverMode": "failover",
+  //
   "serverOptions": {
     "port": 7331
   }
