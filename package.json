@@ -17,6 +17,7 @@
     "url": "https://github.com/kuzzleio/kuzzle-load-balancer.git"
   },
   "dependencies": {
+    "async": "^2.0.0-rc.5",
     "bufferutil": "^1.2.1",
     "easy-circular-list": "^1.0.13",
     "kuzzle-plugin-socketio": "^1.0.8",
