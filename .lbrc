@@ -13,7 +13,7 @@
   "serverTimeout": 10000,
   // Server mode to choose between "failover" and "round-robin"
   // Default: failover
-  "serverMode": "round-robin",
+  "serverMode": "failover",
   "serverOptions": {
     // Broker port waiting for connections
     "port": 7331
