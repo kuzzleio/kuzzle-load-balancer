@@ -4,6 +4,9 @@
   "description": "Kuzzle load-balancer multiplexer",
   "main": "index.js",
   "scripts": {
+    "start": "node index.js",
+    "postinstall": "npm run plugins",
+    "plugins": "node ./plugins.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [

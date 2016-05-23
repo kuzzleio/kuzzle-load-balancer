@@ -1,5 +1,5 @@
 var
-  LoadBalancer = require('../lib/core/LoadBalancer'),
+  LoadBalancer = require('./lib/core/LoadBalancer'),
   loadBalancer = new LoadBalancer();
 
 loadBalancer.initPlugins();
