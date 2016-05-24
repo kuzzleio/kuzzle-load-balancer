@@ -14,5 +14,6 @@
   "serverOptions": {
     // Broker port waiting for connections
     "port": 7331
-  }
+  },
+  "httpPort": 7511
 }

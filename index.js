@@ -4,3 +4,4 @@ var
 
 loadBalancer.initPlugins();
 loadBalancer.initBroker();
+loadBalancer.initHttpProxy();
