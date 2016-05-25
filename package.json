@@ -7,7 +7,8 @@
     "start": "node index.js",
     "postinstall": "npm run plugins",
     "plugins": "node ./plugins.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "npm run unit-testing --coverage && grunt",
+    "unit-testing": "istanbul test _mocha"
   },
   "keywords": [
     "load-balancer",
@@ -33,7 +34,21 @@
     "ws": "^1.1.0"
   },
   "devDependencies": {
-    "eslint": "^2.9.0",
-    "jshint": "^2.9.2"
+    "codecov.io": "^0.1.6",
+    "eslint": "2.8.0",
+    "grunt": "^1.0.1",
+    "grunt-contrib-jshint": "^1.0.0",
+    "gruntify-eslint": "^2.0.0",
+    "istanbul": "0.4.3",
+    "istanbul-middleware": "0.2.2",
+    "mocha": "2.4.5",
+    "rewire": "2.5.1",
+    "should": "8.3.1",
+    "sinon": "1.17.3",
+    "sinon-as-promised": "^4.0.0"
+  },
+  "engines": {
+    "node": ">= 4.3.1",
+    "npm": ">= 2.14.4"
   }
 }
