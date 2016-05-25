@@ -17,7 +17,20 @@ describe('Test: store/PendingRequest', function () {
         requestId: 'doesnotexist'
       },
       promise: {}
+    },
+    dummyInvalidPending = {
+      connection: {},
+      notARequest: {
+        notARequestId: 'invalid'
+      },
+      promise: {}
     };
+
+  it('constructor must initialize pending', () => {
+    var pendingRequest = new PendingRequest();
+
+    should(pendingRequest.pending).be.an.Object();
+  });
 
   it('method add must add an item to the pending', () => {
     var pendingRequest = new PendingRequest();
@@ -25,6 +38,14 @@ describe('Test: store/PendingRequest', function () {
     pendingRequest.add(dummyPendingExist);
 
     should(pendingRequest.pending[dummyPendingExist.request.requestId]).be.deepEqual(dummyPendingExist);
+  });
+
+  it('method add must not add an item to the pending if invalid', () => {
+    var pendingRequest = new PendingRequest();
+
+    pendingRequest.add(dummyInvalidPending);
+
+    should(Object.keys(pendingRequest.pending).length).be.eql(0);
   });
 
   it('method getByRequestId must return an item to the pending if it exists', () => {
@@ -115,6 +136,18 @@ describe('Test: store/PendingRequest', function () {
     should(Object.keys(pendingRequest.pending).length).be.eql(1);
   });
 
+  it('method remove must not remove an item from pending if argument is invalid', () => {
+    var pendingRequest = new PendingRequest();
+
+    pendingRequest.pending = {
+      [dummyPendingExist.request.requestId]: dummyPendingExist
+    };
+
+    pendingRequest.remove(dummyInvalidPending);
+
+    should(Object.keys(pendingRequest.pending).length).be.eql(1);
+  });
+
   it('method clear must empty the pending', () => {
     var pendingRequest = new PendingRequest();
 
@@ -133,8 +166,6 @@ describe('Test: store/PendingRequest', function () {
     pendingRequest.pending = {
       [dummyPendingExist.request.requestId]: dummyPendingExist
     };
-
-    ;
 
     should(pendingRequest.getAll()).be.deepEqual(pendingRequest.pending);
   });
