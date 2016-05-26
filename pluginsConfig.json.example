@@ -1,5 +1,6 @@
 {
   "kuzzle-plugin-socketio": {
+    "activated": true,
     "loadedBy": "server",
     "port": "7512",
     "room": "kuzzle"

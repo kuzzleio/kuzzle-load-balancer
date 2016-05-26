@@ -3,8 +3,7 @@
   "protocolPlugins": {
     // Default plugin to communicate with the load balancer
     "kuzzle-plugin-socketio": {
-      "npmVersion": "1.0.8",
-      "activated": true
+      "npmVersion": "1.0.8"
     }
   },
   "serverTimeout": 10000,

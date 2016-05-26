@@ -3,7 +3,7 @@ var
   should = require('should'),
   ServerConnection = require.main.require('lib/store/ServerConnection');
 
-describe('Test: store/ClientConnection', function () {
+describe('Test: store/ServerConnection', function () {
   var
     dummyServerExist = {
       server: 'exists'
