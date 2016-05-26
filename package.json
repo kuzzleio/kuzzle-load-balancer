@@ -25,7 +25,7 @@
     "bufferutil": "^1.2.1",
     "cli-color": "^1.1.0",
     "easy-circular-list": "^1.0.13",
-    "kuzzle-common-objects": "git+https://github.com/kuzzleio/kuzzle-common-objects.git",
+    "kuzzle-common-objects": "git+https://github.com/kuzzleio/kuzzle-common-objects.git#1.0.0",
     "lodash": "^4.12.0",
     "proper-lockfile": "^1.1.2",
     "q": "^1.4.1",
