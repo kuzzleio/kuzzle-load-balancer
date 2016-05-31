@@ -8,7 +8,8 @@
     "postinstall": "npm run plugins",
     "plugins": "node ./plugins.js",
     "test": "grunt && npm run unit-testing --coverage",
-    "unit-testing": "istanbul test _mocha"
+    "unit-testing": "istanbul test _mocha",
+    "codecov": "cat ./coverage/lcov.info | ./node_modules/.bin/codecov"
   },
   "keywords": [
     "load-balancer",
