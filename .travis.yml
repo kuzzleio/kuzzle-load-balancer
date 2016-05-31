@@ -3,7 +3,7 @@ services:
   - docker
 script:
   - >
-    docker run -v $(pwd):/var/app kuzzleio/lb-test
+    docker run -v $(pwd):/var/app
     -e TRAVIS=$TRAVIS
     -e TRAVIS_COMMIT=$TRAVIS_COMMIT
     -e TRAVIS_JOB_NUMBER=$TRAVIS_JOB_NUMBER
@@ -11,6 +11,6 @@ script:
     -e TRAVIS_JOB_ID=TRAVIS_JOB_ID
     -e TRAVIS_PULL_REQUEST=$TRAVIS_PULL_REQUEST
     -e TRAVIS_REPO_SLUG=$TRAVIS_REPO_SLUG
-    /var/app/bin/run-test-travis.sh
+    kuzzleio/lb-test /var/app/bin/run-test-travis.sh
 notifications:
   email: false
