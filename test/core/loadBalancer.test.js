@@ -227,7 +227,7 @@ describe('Test: core/LoadBalancer', function () {
       loadBalancer.readPluginsConfiguration();
     }
     catch (error) {
-      should(error).be.deepEqual(new Error('No plugin has been activated in configuration. We shutdown.'));
+      should(error).be.deepEqual(new Error('No plugin has been activated in configuration. Shutting down.'));
     }
   });
 
@@ -244,7 +244,7 @@ describe('Test: core/LoadBalancer', function () {
       loadBalancer.readPluginsConfiguration();
     }
     catch (error) {
-      should(error).be.deepEqual(new Error('No plugin configuration provided. We shutdown.'));
+      should(error).be.deepEqual(new Error('No plugin configuration provided. Shutting down.'));
     }
   });
 
