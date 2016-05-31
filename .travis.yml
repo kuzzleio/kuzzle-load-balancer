@@ -1,0 +1,7 @@
+sudo: required
+services:
+- docker
+script:
+- docker run -v $(pwd):/var/app kuzzleio/lb-test /var/app/bin/run-test.sh
+notifications:
+  email: false
