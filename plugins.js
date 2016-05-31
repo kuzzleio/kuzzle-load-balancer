@@ -151,7 +151,7 @@ function getPathPlugin (pluginConfig, pluginName) {
   if (pluginConfig.path) {
     return pluginConfig.path;
   }
-  return require.resolve(pluginName);
+  return path.join(__dirname, '..', 'node_modules', pluginName);
 }
 
 pluginsInstall();
