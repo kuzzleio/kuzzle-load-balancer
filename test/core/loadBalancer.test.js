@@ -210,7 +210,7 @@ describe('Test: core/LoadBalancer', function () {
     should(readOnePluginConfigurationStub.calledTwice).be.true();
   });
 
-  it('method readPluginsConfiguration must return the configuration of the plugins', () => {
+  it('method readPluginsConfiguration throw an error if no plugin is activated', () => {
     var
       loadBalancer,
       currentConfig = {},
@@ -238,13 +238,10 @@ describe('Test: core/LoadBalancer', function () {
     }
   });
 
-
   it('method readPluginsConfiguration throws an Error if no plugin configuration is provided', () => {
     var loadBalancer;
 
     loadBalancer = new LoadBalancer();
-
-    console.log(loadBalancer.config.protocolPlugins);
 
     try {
       loadBalancer.readPluginsConfiguration();
@@ -253,27 +250,6 @@ describe('Test: core/LoadBalancer', function () {
       should(error).be.deepEqual(new Error('No plugin configuration provided. Shutting down.'));
     }
   });
-
-
-  it('method readPluginsConfiguration throws an Error if no plugin configuration is provided', () => {
-    var loadBalancer;
-
-    loadBalancer = new LoadBalancer();
-
-    sandbox.stub(LoadBalancer.prototype, 'requirePluginConfig').returns({
-      pluginInfo: {
-        defaultConfig: {}
-      }
-    });
-
-    // TODO : Finish this test
-  });
-
-
-
-
-
-
 
   it('method requirePluginPackage must return required item', () => {
     var loadBalancer = new LoadBalancer();
