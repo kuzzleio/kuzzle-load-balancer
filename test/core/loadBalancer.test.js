@@ -13,6 +13,7 @@ describe('Test: core/LoadBalancer', function () {
     sandbox,
     requireStub,
     protocolPlugins,
+    serverTimeout = 10000,
     aPluginName = 'a-plugin-name',
     anotherPluginName = 'another-plugin-name',
     serverMode,
@@ -58,7 +59,7 @@ describe('Test: core/LoadBalancer', function () {
     protocolPlugins = {};
 
     sandbox.stub(LoadBalancer.prototype, 'getRCConfig', () => {
-      return {serverMode, protocolPlugins};
+      return {serverMode, protocolPlugins, serverTimeout};
     });
 
     requireStub = sinon.spy(function(requireArgument) {
@@ -172,7 +173,7 @@ describe('Test: core/LoadBalancer', function () {
 
     loadBalancer.initBroker();
 
-    should(initBrokerStub.calledWith(loadBalancer.config.serverMode, loadBalancer.context, loadBalancer.config.serverOptions)).be.true();
+    should(initBrokerStub.calledWith(loadBalancer.config.serverMode, loadBalancer.context, loadBalancer.config.serverOptions, loadBalancer.config.serverTimeout)).be.true();
     should(loadBalancer.context.broker).be.eql(loadBalancer.broker);
   });
 
@@ -186,8 +187,11 @@ describe('Test: core/LoadBalancer', function () {
 
 
   it('method readPluginsConfiguration must return the configuration of the plugins', () => {
-    var loadBalancer;
-    var currentConfig = {};
+    var
+      loadBalancer,
+      currentConfig = {},
+      readOnePluginConfigurationStub,
+      loadCurrentConfigStub;
 
     protocolPlugins = {
       aPluginName,
@@ -196,8 +200,8 @@ describe('Test: core/LoadBalancer', function () {
 
     loadBalancer = new LoadBalancer();
 
-    var readOnePluginConfigurationStub = sandbox.stub(LoadBalancer.prototype, 'readOnePluginConfiguration');
-    var loadCurrentConfigStub = sandbox.stub(LoadBalancer.prototype, 'loadCurrentConfig');
+    readOnePluginConfigurationStub = sandbox.stub(LoadBalancer.prototype, 'readOnePluginConfiguration');
+    loadCurrentConfigStub = sandbox.stub(LoadBalancer.prototype, 'loadCurrentConfig');
 
     readOnePluginConfigurationStub.returns({activated: true});
     loadCurrentConfigStub.returns(currentConfig);
@@ -207,8 +211,11 @@ describe('Test: core/LoadBalancer', function () {
   });
 
   it('method readPluginsConfiguration must return the configuration of the plugins', () => {
-    var loadBalancer;
-    var currentConfig = {};
+    var
+      loadBalancer,
+      currentConfig = {},
+      readOnePluginConfigurationStub,
+      loadCurrentConfigStub;
 
     protocolPlugins = {
       aPluginName,
@@ -217,8 +224,8 @@ describe('Test: core/LoadBalancer', function () {
 
     loadBalancer = new LoadBalancer();
 
-    var readOnePluginConfigurationStub = sandbox.stub(LoadBalancer.prototype, 'readOnePluginConfiguration');
-    var loadCurrentConfigStub = sandbox.stub(LoadBalancer.prototype, 'loadCurrentConfig');
+    readOnePluginConfigurationStub = sandbox.stub(LoadBalancer.prototype, 'readOnePluginConfiguration');
+    loadCurrentConfigStub = sandbox.stub(LoadBalancer.prototype, 'loadCurrentConfig');
 
     readOnePluginConfigurationStub.returns({activated: false});
     loadCurrentConfigStub.returns(currentConfig);
@@ -234,7 +241,6 @@ describe('Test: core/LoadBalancer', function () {
 
   it('method readPluginsConfiguration throws an Error if no plugin configuration is provided', () => {
     var loadBalancer;
-    var currentConfig = {};
 
     loadBalancer = new LoadBalancer();
 
@@ -260,6 +266,7 @@ describe('Test: core/LoadBalancer', function () {
       }
     });
 
+    // TODO : Finish this test
   });
 
 
