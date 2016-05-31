@@ -92,12 +92,9 @@ describe('Test: core/LoadBalancer', function () {
   it('constructor must throw an error if serverMode is bad', () => {
     serverMode = 'unknown';
 
-    try {
+    (function() {
       new LoadBalancer();
-    }
-    catch (error) {
-      should(error).be.deepEqual(new Error('Server mode option must be either set to "failover" or "round-robin"; "unknown" given'));
-    }
+    }).should.throw('Server mode option must be either set to "failover" or "round-robin"; "unknown" given');
   });
 
   it('method getRCConfig must return an object', () => {
@@ -143,12 +140,7 @@ describe('Test: core/LoadBalancer', function () {
 
     loadBalancer = new LoadBalancer();
 
-    try {
-      loadBalancer.initPlugins();
-    }
-    catch (error) {
-      should(error).be.deepEqual(new Error('No plugin has been initialized properly. We shutdown.'));
-    }
+    loadBalancer.initPlugins.bind(loadBalancer).should.throw('No plugin has been initialized properly. Shutting down.');
   });
 
   it('method initPlugins must recover on an error if plugin does not initialize properly', () => {
@@ -217,11 +209,6 @@ describe('Test: core/LoadBalancer', function () {
       readOnePluginConfigurationStub,
       loadCurrentConfigStub;
 
-    protocolPlugins = {
-      aPluginName,
-      anotherPluginName
-    };
-
     loadBalancer = new LoadBalancer();
 
     readOnePluginConfigurationStub = sandbox.stub(LoadBalancer.prototype, 'readOnePluginConfiguration');
@@ -230,12 +217,12 @@ describe('Test: core/LoadBalancer', function () {
     readOnePluginConfigurationStub.returns({activated: false});
     loadCurrentConfigStub.returns(currentConfig);
 
-    try {
-      loadBalancer.readPluginsConfiguration();
-    }
-    catch (error) {
-      should(error).be.deepEqual(new Error('No plugin has been activated in configuration. Shutting down.'));
-    }
+    loadBalancer.config.protocolPlugins = {
+      aPluginName,
+      anotherPluginName
+    };
+
+    loadBalancer.readPluginsConfiguration.bind(loadBalancer).should.throw('No plugin has been activated in configuration. Shutting down.');
   });
 
   it('method readPluginsConfiguration throws an Error if no plugin configuration is provided', () => {
@@ -243,12 +230,7 @@ describe('Test: core/LoadBalancer', function () {
 
     loadBalancer = new LoadBalancer();
 
-    try {
-      loadBalancer.readPluginsConfiguration();
-    }
-    catch (error) {
-      should(error).be.deepEqual(new Error('No plugin configuration provided. Shutting down.'));
-    }
+    loadBalancer.readPluginsConfiguration.bind(loadBalancer).should.throw('No plugin configuration provided. Shutting down.');
   });
 
   it('method requirePluginPackage must return required item', () => {

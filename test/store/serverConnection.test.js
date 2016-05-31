@@ -83,12 +83,7 @@ describe('Test: store/ServerConnection', function () {
     serverConnection.serverConnections.add(dummyServerExist);
     serverConnection.serverConnections.add(dummyServerExistBis);
 
-    try {
-      serverConnection.getOneServer('unknown');
-    }
-    catch (error) {
-      should(error).be.deepEqual(new Error('Unknown server mode unknown'));
-    }
+    serverConnection.getOneServer.bind(null, 'unknown').should.throw('Unknown server mode unknown');
   });
 
   it('method count must return the number of stored items', () => {
