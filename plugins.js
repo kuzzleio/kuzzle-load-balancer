@@ -143,15 +143,15 @@ function needInstall(plugin, name, from) {
 /**
  * Return the real plugin path
  *
- * @param plugin
- * @param name
+ * @param pluginConfig
+ * @param pluginName
  * @returns {String}
  */
-function getPathPlugin (plugin, name) {
-  if (plugin.path) {
-    return plugin.path;
+function getPathPlugin (pluginConfig, pluginName) {
+  if (pluginConfig.path) {
+    return pluginConfig.path;
   }
-  return path.join(__dirname, '..', 'node_modules', name);
+  return path.join(__dirname, '..', 'node_modules', pluginName);
 }
 
 pluginsInstall();
