@@ -98,26 +98,36 @@ describe('Test: core/LoadBalancer', function () {
   });
 
   it('method getRCConfig must return an object', () => {
-    var loadBalancer = new LoadBalancer();
+    var loadBalancer;
+
+    sandbox.restore();
+
+    loadBalancer = new LoadBalancer();
 
     should(loadBalancer.getRCConfig()).be.an.Object();
   });
 
   it('method initPlugins must initialize plugins when activated', () => {
-    var loadBalancer;
+    var
+      loadBalancer,
+      pluginStoreAddStub;
 
     sandbox.stub(LoadBalancer.prototype, 'readPluginsConfiguration').returns(dummyActivatedPlugin);
     sandbox
       .stub(LoadBalancer.prototype, 'requirePluginPackage')
-      .withArgs(anotherPluginName).returns(dummyPluginConstructor(anotherPluginName))
-      .withArgs(aPluginName).returns(dummyPluginConstructor(aPluginName));
+      .withArgs(aPluginName).returns(dummyPluginConstructor(aPluginName))
+      .withArgs(anotherPluginName).returns(dummyPluginConstructor(anotherPluginName));
 
     loadBalancer = new LoadBalancer();
 
+    pluginStoreAddStub = sandbox.stub(loadBalancer.context.pluginStore, 'add');
+    sandbox.stub(loadBalancer.context.pluginStore, 'count').returns(2);
+
     loadBalancer.initPlugins();
 
-    should(loadBalancer.context.pluginStore.getByProtocol(aPluginName)).be.deepEqual(dummyPluginConstructor(aPluginName)());
-    should(loadBalancer.context.pluginStore.count()).be.eql(2);
+    should(pluginStoreAddStub.getCall(0).args[0].pluginName).be.eql(aPluginName);
+    should(pluginStoreAddStub.getCall(1).args[0].pluginName).be.eql(anotherPluginName);
+    should(pluginStoreAddStub.callCount).be.eql(2);
   });
 
   it('method initPlugins must initialize plugins when activated', () => {
@@ -144,7 +154,9 @@ describe('Test: core/LoadBalancer', function () {
   });
 
   it('method initPlugins must recover on an error if plugin does not initialize properly', () => {
-    var loadBalancer;
+    var
+      loadBalancer,
+      pluginStoreAddStub;
 
     sandbox.stub(LoadBalancer.prototype, 'readPluginsConfiguration').returns(dummyActivatedPlugin);
     sandbox
@@ -153,10 +165,13 @@ describe('Test: core/LoadBalancer', function () {
       .withArgs(aPluginName).throws(Error);
 
     loadBalancer = new LoadBalancer();
+    pluginStoreAddStub = sandbox.stub(loadBalancer.context.pluginStore, 'add');
+    sandbox.stub(loadBalancer.context.pluginStore, 'count').returns(1);
 
     loadBalancer.initPlugins();
 
-    should(loadBalancer.context.pluginStore.count()).be.eql(1);
+    should(pluginStoreAddStub.getCall(0).args[0].pluginName).be.eql(anotherPluginName);
+    should(pluginStoreAddStub.callCount).be.eql(1);
   });
 
   it('method initBroker initializes the broker', () => {
@@ -201,7 +216,7 @@ describe('Test: core/LoadBalancer', function () {
     should(Object.keys(loadBalancer.readPluginsConfiguration()).length).be.eql(2);
     should(readOnePluginConfigurationStub.calledTwice).be.true();
   });
-
+0
   it('method readPluginsConfiguration throw an error if no plugin is activated', () => {
     var
       loadBalancer,
