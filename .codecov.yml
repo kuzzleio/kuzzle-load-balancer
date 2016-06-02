@@ -1,0 +1,22 @@
+codecov:
+  branch: master       # the branch to show by default, inherited from your git repository settings
+                       # ex. master, stable or release
+                       # default: the default branch in git/mercurial
+
+coverage:
+  precision: 2         # how many decimal places to display in the UI: 0 <= value <= 4
+  round: nearest       # how coverage is rounded: down/up/nearest
+  range: 50...100      # custom range of coverage colors from red -> yellow -> green
+  ignore:              # files and folders that will be removed during processing
+    - "test/*"
+    - "coverage/*"
+    - "Gruntfile.js"
+
+# comment: false  # to disable comments
+comment:
+  layout: "header, diff, changes, uncovered"
+  branches: null           # -> see "branch patterns" below
+  behavior: default        # option: "default" posts once then update, posts new if delete
+                           # option: "once"    post once then updates, if deleted do not post new
+                           # option: "new"     delete old, post new
+                           # option: "spammy"  post new

@@ -2,6 +2,12 @@ var
   LoadBalancer = require('./lib/core/LoadBalancer'),
   loadBalancer = new LoadBalancer();
 
-loadBalancer.initPlugins();
-loadBalancer.initBroker();
-loadBalancer.initHttpProxy();
+try {
+  loadBalancer.initPlugins();
+  loadBalancer.initBroker();
+  loadBalancer.initHttpProxy();
+}
+catch (error) {
+  console.error(error);
+  process.exit(1);
+}
