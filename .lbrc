@@ -3,7 +3,7 @@
   "protocolPlugins": {
     // Default plugin to communicate with the load balancer
     "kuzzle-plugin-socketio": {
-      "npmVersion": "1.0.8"
+      "npmVersion": "1.1.0"
     }
   },
   // Timeout when a request is aborted and an error is returned in ms
