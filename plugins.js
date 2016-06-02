@@ -47,7 +47,7 @@ function pluginsInstall () {
 /**
  * Download given plugins
  *
- * @param plugins
+ * @param {*} plugins
  * @returns {boolean}
  */
 function acquirePlugins(plugins) {
@@ -57,6 +57,7 @@ function acquirePlugins(plugins) {
     pluginInstallId;
 
   _.forEach(plugins, (plugin, name) => {
+    /** @var {{gitUrl: String, npmVersion: String}} plugin */
     if (plugin.path) {
       console.log('███ kuzzle-plugins: Plugin', name, 'uses local plugin. Config will be overrided with local changes.');
       installViaNpm = false;
@@ -133,6 +134,7 @@ function needInstall(plugin, name, from) {
     return true;
   }
 
+  /** @type {{_from: String}} */
   packageDefinition = require(path.join(pluginPath, 'package.json'));
 
 
@@ -151,7 +153,7 @@ function getPathPlugin (pluginConfig, pluginName) {
   if (pluginConfig.path) {
     return pluginConfig.path;
   }
-  return path.join(__dirname, '..', 'node_modules', pluginName);
+  return path.join(__dirname, 'node_modules', pluginName);
 }
 
 pluginsInstall();
