@@ -5,16 +5,16 @@ var
 describe('Test: store/ClientConnection', function () {
   var
     dummyConnectionExist = {
-      socketId: 'exists',
-      protocol: 'dummy'
+      id: 'exists',
+      type: 'dummy'
     },
     dummyConnectionDoesNotExist = {
-      socketId: 'doesnotexist',
-      protocol: 'dummy'
+      id: 'doesnotexist',
+      type: 'dummy'
     },
     dummyInvalidConnection = {
-      notASocketId: 'invalid',
-      protocol: 'dummy'
+      notAid: 'invalid',
+      type: 'dummy'
     };
 
   it('constructor must initialize clientConnections', () => {
@@ -28,7 +28,7 @@ describe('Test: store/ClientConnection', function () {
 
     clientConnection.add(dummyConnectionExist);
 
-    should(clientConnection.clientConnections[dummyConnectionExist.socketId]).be.deepEqual(dummyConnectionExist);
+    should(clientConnection.clientConnections[dummyConnectionExist.id]).be.deepEqual(dummyConnectionExist);
   });
 
   it('method add must not add an item to the clientConnections if invalid', () => {
@@ -43,7 +43,7 @@ describe('Test: store/ClientConnection', function () {
     var clientConnection = new ClientConnection();
 
     clientConnection.clientConnections = {
-      [dummyConnectionExist.socketId]: dummyConnectionExist
+      [dummyConnectionExist.id]: dummyConnectionExist
     };
 
     clientConnection.remove(dummyConnectionExist);
@@ -55,7 +55,7 @@ describe('Test: store/ClientConnection', function () {
     var clientConnection = new ClientConnection();
 
     clientConnection.clientConnections = {
-      [dummyConnectionExist.socketId]: dummyConnectionExist
+      [dummyConnectionExist.id]: dummyConnectionExist
     };
 
     clientConnection.remove(dummyConnectionDoesNotExist);
@@ -67,7 +67,7 @@ describe('Test: store/ClientConnection', function () {
     var clientConnection = new ClientConnection();
 
     clientConnection.clientConnections = {
-      [dummyConnectionExist.socketId]: dummyConnectionExist
+      [dummyConnectionExist.id]: dummyConnectionExist
     };
 
     clientConnection.remove(dummyInvalidConnection);
@@ -79,7 +79,7 @@ describe('Test: store/ClientConnection', function () {
     var clientConnection = new ClientConnection();
 
     clientConnection.clientConnections = {
-      [dummyConnectionExist.socketId]: dummyConnectionExist
+      [dummyConnectionExist.id]: dummyConnectionExist
     };
 
     should(clientConnection.get(dummyConnectionExist)).be.deepEqual(dummyConnectionExist);
@@ -89,7 +89,7 @@ describe('Test: store/ClientConnection', function () {
     var clientConnection = new ClientConnection();
 
     clientConnection.clientConnections = {
-      [dummyConnectionExist.socketId]: dummyConnectionExist
+      [dummyConnectionExist.id]: dummyConnectionExist
     };
 
     should(clientConnection.get(dummyConnectionDoesNotExist)).be.undefined();
@@ -99,37 +99,37 @@ describe('Test: store/ClientConnection', function () {
     var clientConnection = new ClientConnection();
 
     clientConnection.clientConnections = {
-      [dummyConnectionExist.socketId]: dummyConnectionExist
+      [dummyConnectionExist.id]: dummyConnectionExist
     };
 
     should(clientConnection.get(dummyInvalidConnection)).be.undefined();
   });
 
-  it('method getBySocketId must return an item from clientConnections if it exists', () => {
+  it('method getByid must return an item from clientConnections if it exists', () => {
     var clientConnection = new ClientConnection();
 
     clientConnection.clientConnections = {
-      [dummyConnectionExist.socketId]: dummyConnectionExist
+      [dummyConnectionExist.id]: dummyConnectionExist
     };
 
-    should(clientConnection.getBySocketId(dummyConnectionExist.socketId)).be.deepEqual(dummyConnectionExist);
+    should(clientConnection.getByConnectionId(dummyConnectionExist.id)).be.deepEqual(dummyConnectionExist);
   });
 
   it('method get must return undefined if the item doesn not exist in clientConnections', () => {
     var clientConnection = new ClientConnection();
 
     clientConnection.clientConnections = {
-      [dummyConnectionExist.socketId]: dummyConnectionExist
+      [dummyConnectionExist.id]: dummyConnectionExist
     };
 
-    should(clientConnection.getBySocketId(dummyConnectionDoesNotExist.socketId)).be.undefined();
+    should(clientConnection.getByConnectionId(dummyConnectionDoesNotExist.id)).be.undefined();
   });
 
   it('method getAll must return clientConnections', () => {
     var clientConnection = new ClientConnection();
 
     clientConnection.clientConnections = {
-      [dummyConnectionExist.socketId]: dummyConnectionExist
+      [dummyConnectionExist.id]: dummyConnectionExist
     };
 
     should(clientConnection.getAll()).be.deepEqual(clientConnection.clientConnections);
