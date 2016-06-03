@@ -1,30 +1,61 @@
 var
   should = require('should'),
-  PendingRequest = require.main.require('lib/store/PendingRequest');
+  sandbox = require('sinon').sandbox.create(),
+  rewire = require('rewire'),
+  PendingRequest = rewire('../../lib/store/PendingRequest');
 
 describe('Test: store/PendingRequest', function () {
   var
+    spyClearTimeout,
+    spySetTimeout,
     dummyPendingExist = {
-      connection: {},
-      request: {
-        requestId: 'exists'
+      message: {
+        data: {
+          connection: {},
+          request: {
+            requestId: 'exists'
+          }
+        }
       },
+      timeout: 'timeoutDummyPendingExist',
       promise: {}
     },
     dummyPendingDoesNotExist = {
-      connection: {},
-      request: {
-        requestId: 'doesnotexist'
+      message: {
+        data: {
+          connection: {},
+          request: {
+            requestId: 'doesnotexist'
+          }
+        }
       },
+      timeout: 'timeoutDummyPendingDoesNotExist',
       promise: {}
     },
     dummyInvalidPending = {
-      connection: {},
-      notARequest: {
-        notARequestId: 'invalid'
+      message: {
+        data: {
+          connection: {},
+          notARequest: {
+            notARequestId: 'invalid'
+          }
+        }
       },
+      timeout: 'timeoutDummyInvalidPending',
       promise: {}
     };
+
+  beforeEach(() => {
+    spyClearTimeout = sandbox.stub();
+    spySetTimeout = sandbox.stub();
+
+    PendingRequest.__set__('clearTimeout', spyClearTimeout);
+    PendingRequest.__set__('setTimeout', spySetTimeout);
+  });
+
+  afterEach(() => {
+    sandbox.restore();
+  });
 
   it('constructor must initialize pending', () => {
     var pendingRequest = new PendingRequest();
@@ -33,11 +64,20 @@ describe('Test: store/PendingRequest', function () {
   });
 
   it('method add must add an item to the pending', () => {
-    var pendingRequest = new PendingRequest();
+    var
+      pendingRequest = new PendingRequest(),
+      spyWithReturnTimeout = sandbox.spy(function () {
+        return dummyPendingExist.timeout;
+      });
+
+    PendingRequest.__set__('setTimeout', spyWithReturnTimeout);
 
     pendingRequest.add(dummyPendingExist);
 
-    should(pendingRequest.pending[dummyPendingExist.request.requestId]).be.deepEqual(dummyPendingExist);
+    /** TODO: Test if the callback of setTimeout is called after the delay in this.serverTimeout **/
+
+    should(spyWithReturnTimeout.calledOnce).be.true();
+    should(pendingRequest.pending[dummyPendingExist.message.data.request.requestId]).be.deepEqual(dummyPendingExist);
   });
 
   it('method add must not add an item to the pending if invalid', () => {
@@ -45,6 +85,7 @@ describe('Test: store/PendingRequest', function () {
 
     pendingRequest.add(dummyInvalidPending);
 
+    should(spySetTimeout.calledOnce).be.false();
     should(Object.keys(pendingRequest.pending).length).be.eql(0);
   });
 
@@ -52,51 +93,52 @@ describe('Test: store/PendingRequest', function () {
     var pendingRequest = new PendingRequest();
 
     pendingRequest.pending = {
-      [dummyPendingExist.request.requestId]: dummyPendingExist
+      [dummyPendingExist.message.data.request.requestId]: dummyPendingExist
     };
 
-    should(pendingRequest.getByRequestId(dummyPendingExist.request.requestId)).be.deepEqual(dummyPendingExist);
+    should(pendingRequest.getByRequestId(dummyPendingExist.message.data.request.requestId)).be.deepEqual(dummyPendingExist);
   });
 
   it('method getByRequestId must return undefined if an item does not exist in pending', () => {
     var pendingRequest = new PendingRequest();
 
     pendingRequest.pending = {
-      [dummyPendingExist.request.requestId]: dummyPendingExist
+      [dummyPendingExist.message.data.request.requestId]: dummyPendingExist
     };
 
-    should(pendingRequest.getByRequestId(dummyPendingDoesNotExist.request.requestId)).be.undefined();
+    should(pendingRequest.getByRequestId(dummyPendingDoesNotExist.message.data.request.requestId)).be.undefined();
   });
 
   it('method existsByRequestId must return true if the item exists', () => {
     var pendingRequest = new PendingRequest();
 
     pendingRequest.pending = {
-      [dummyPendingExist.request.requestId]: dummyPendingExist
+      [dummyPendingExist.message.data.request.requestId]: dummyPendingExist
     };
 
-    should(pendingRequest.existsByRequestId(dummyPendingExist.request.requestId)).be.true();
+    should(pendingRequest.existsByRequestId(dummyPendingExist.message.data.request.requestId)).be.true();
   });
 
   it('method existsByRequestId must return false if the item does not exist', () => {
     var pendingRequest = new PendingRequest();
 
     pendingRequest.pending = {
-      [dummyPendingExist.request.requestId]: dummyPendingExist
+      [dummyPendingExist.message.data.request.requestId]: dummyPendingExist
     };
 
-    should(pendingRequest.existsByRequestId(dummyPendingDoesNotExist.request.requestId)).be.false();
+    should(pendingRequest.existsByRequestId(dummyPendingDoesNotExist.message.data.request.requestId)).be.false();
   });
 
   it('method removeByRequestId must remove an item from pending if it exist', () => {
     var pendingRequest = new PendingRequest();
 
     pendingRequest.pending = {
-      [dummyPendingExist.request.requestId]: dummyPendingExist
+      [dummyPendingExist.message.data.request.requestId]: dummyPendingExist
     };
 
-    pendingRequest.removeByRequestId(dummyPendingExist.request.requestId);
+    pendingRequest.removeByRequestId(dummyPendingExist.message.data.request.requestId);
 
+    should(spyClearTimeout.calledWith('timeoutDummyPendingExist')).be.true();
     should(Object.keys(pendingRequest.pending).length).be.eql(0);
   });
 
@@ -104,11 +146,12 @@ describe('Test: store/PendingRequest', function () {
     var pendingRequest = new PendingRequest();
 
     pendingRequest.pending = {
-      [dummyPendingExist.request.requestId]: dummyPendingExist
+      [dummyPendingExist.message.data.request.requestId]: dummyPendingExist
     };
 
-    pendingRequest.removeByRequestId(dummyPendingDoesNotExist.request.requestId);
+    pendingRequest.removeByRequestId(dummyPendingDoesNotExist.message.data.request.requestId);
 
+    should(spyClearTimeout.calledWith('timeoutDummyPendingDoesNotExist')).be.false();
     should(Object.keys(pendingRequest.pending).length).be.eql(1);
   });
 
@@ -116,11 +159,12 @@ describe('Test: store/PendingRequest', function () {
     var pendingRequest = new PendingRequest();
 
     pendingRequest.pending = {
-      [dummyPendingExist.request.requestId]: dummyPendingExist
+      [dummyPendingExist.message.data.request.requestId]: dummyPendingExist
     };
 
     pendingRequest.remove(dummyPendingExist);
 
+    should(spyClearTimeout.calledWith('timeoutDummyPendingExist')).be.true();
     should(Object.keys(pendingRequest.pending).length).be.eql(0);
   });
 
@@ -128,11 +172,12 @@ describe('Test: store/PendingRequest', function () {
     var pendingRequest = new PendingRequest();
 
     pendingRequest.pending = {
-      [dummyPendingExist.request.requestId]: dummyPendingExist
+      [dummyPendingExist.message.data.request.requestId]: dummyPendingExist
     };
 
     pendingRequest.remove(dummyPendingDoesNotExist);
 
+    should(spyClearTimeout.calledWith('timeoutDummyPendingDoesNotExist')).be.false();
     should(Object.keys(pendingRequest.pending).length).be.eql(1);
   });
 
@@ -140,11 +185,12 @@ describe('Test: store/PendingRequest', function () {
     var pendingRequest = new PendingRequest();
 
     pendingRequest.pending = {
-      [dummyPendingExist.request.requestId]: dummyPendingExist
+      [dummyPendingExist.message.data.request.requestId]: dummyPendingExist
     };
 
     pendingRequest.remove(dummyInvalidPending);
 
+    should(spyClearTimeout.calledWith('timeoutDummyInvalidPending')).be.false();
     should(Object.keys(pendingRequest.pending).length).be.eql(1);
   });
 
@@ -152,11 +198,12 @@ describe('Test: store/PendingRequest', function () {
     var pendingRequest = new PendingRequest();
 
     pendingRequest.pending = {
-      [dummyPendingExist.request.requestId]: dummyPendingExist
+      [dummyPendingExist.message.data.request.requestId]: dummyPendingExist
     };
 
     pendingRequest.clear();
 
+    should(spyClearTimeout.calledWith('timeoutDummyPendingExist')).be.true();
     should(Object.keys(pendingRequest.pending).length).be.eql(0);
   });
 
@@ -164,7 +211,7 @@ describe('Test: store/PendingRequest', function () {
     var pendingRequest = new PendingRequest();
 
     pendingRequest.pending = {
-      [dummyPendingExist.request.requestId]: dummyPendingExist
+      [dummyPendingExist.message.data.request.requestId]: dummyPendingExist
     };
 
     should(pendingRequest.getAll()).be.deepEqual(pendingRequest.pending);
