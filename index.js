@@ -1,6 +1,6 @@
 var
-  Proxy = require('./lib/core/Proxy'),
-  proxy = new Proxy();
+  KuzzleProxy = require('./lib/core/KuzzleProxy'),
+  proxy = new KuzzleProxy();
 
 try {
   proxy.initPlugins();
