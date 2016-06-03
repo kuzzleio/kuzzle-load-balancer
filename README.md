@@ -1,4 +1,4 @@
-# kuzzle-proxy
+# Kuzzle Proxy
 
 Node.js proxy and multiplexer
 
