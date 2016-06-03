@@ -105,7 +105,7 @@ describe('Test: store/ClientConnection', function () {
     should(clientConnection.get(dummyInvalidConnection)).be.undefined();
   });
 
-  it('method getByid must return an item from clientConnections if it exists', () => {
+  it('method getByConnectionId must return an item from clientConnections if it exists', () => {
     var clientConnection = new ClientConnection();
 
     clientConnection.clientConnections = {
@@ -115,7 +115,7 @@ describe('Test: store/ClientConnection', function () {
     should(clientConnection.getByConnectionId(dummyConnectionExist.id)).be.deepEqual(dummyConnectionExist);
   });
 
-  it('method get must return undefined if the item doesn not exist in clientConnections', () => {
+  it('method get must return undefined if the item doesn\'t not exist in clientConnections', () => {
     var clientConnection = new ClientConnection();
 
     clientConnection.clientConnections = {
