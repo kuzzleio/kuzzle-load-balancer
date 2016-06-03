@@ -1,11 +1,11 @@
 var
-  LoadBalancer = require('./lib/core/LoadBalancer'),
-  loadBalancer = new LoadBalancer();
+  Proxy = require('./lib/core/Proxy'),
+  proxy = new Proxy();
 
 try {
-  loadBalancer.initPlugins();
-  loadBalancer.initBroker();
-  loadBalancer.initHttpProxy();
+  proxy.initPlugins();
+  proxy.initBroker();
+  proxy.initHttpProxy();
 }
 catch (error) {
   console.error(error);

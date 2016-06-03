@@ -3,12 +3,12 @@ var
   should = require('should'),
   rewire = require('rewire'),
   path = require('path'),
-  LoadBalancer = rewire('../../lib/core/LoadBalancer'),
+  LoadBalancer = rewire('../../lib/core/Proxy'),
   Broker = require.main.require('lib/service/Broker'),
   HttpProxy = require.main.require('lib/service/HttpProxy'),
   Context = require.main.require('lib/core/Context');
 
-describe('Test: core/LoadBalancer', function () {
+describe('Test: core/Proxy', function () {
   var
     sandbox,
     requireStub,
