@@ -8,4 +8,6 @@ cd $APP_DIRECTORY
 
 npm install
 
+sleep 5
+
 npm test
