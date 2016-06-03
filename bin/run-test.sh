@@ -8,6 +8,8 @@ cd $APP_DIRECTORY
 
 npm install
 
-sleep 5
+npm run plugins
+
+sleep 1
 
 npm test
