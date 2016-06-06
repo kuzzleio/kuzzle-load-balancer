@@ -2,7 +2,7 @@
   "name": "kuzzle-proxy",
   "version": "0.0.1",
   "description": "Kuzzle proxy multiplexer",
-  "main": "index.js",
+  "main": "lib/index.js",
   "scripts": {
     "start": "node index.js",
     "postinstall": "npm run plugins",
