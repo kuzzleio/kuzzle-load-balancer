@@ -5,7 +5,6 @@
   "main": "lib/index.js",
   "scripts": {
     "start": "node index.js",
-    "postinstall": "npm run plugins",
     "plugins": "node ./plugins.js",
     "test": "grunt && npm run unit-testing --coverage",
     "unit-testing": "istanbul test _mocha",
