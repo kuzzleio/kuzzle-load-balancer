@@ -6,7 +6,7 @@ var
   lockfile = require('proper-lockfile'),
   _ = require('lodash'),
   clc = require('cli-color'),
-  configuration = require('rc')('lb'),
+  configuration = require('rc')('proxy'),
   clcError = clc.red,
   clcOk = clc.green.bold;
 
