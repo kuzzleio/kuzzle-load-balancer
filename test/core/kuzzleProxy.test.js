@@ -13,10 +13,10 @@ describe('Test: core/KuzzleProxy', function () {
     sandbox,
     requireStub,
     protocolPlugins,
-    serverTimeout = 10000,
+    backendTimeout = 10000,
     aPluginName = 'a-plugin-name',
     anotherPluginName = 'another-plugin-name',
-    serverMode,
+    backendMode,
     fs,
     dummyActivatedPlugin = {
       [aPluginName]: {
@@ -55,11 +55,11 @@ describe('Test: core/KuzzleProxy', function () {
 
   beforeEach(() => {
     sandbox = sinon.sandbox.create();
-    serverMode = 'failover';
+    backendMode = 'failover';
     protocolPlugins = {};
 
     sandbox.stub(KuzzleProxy.prototype, 'getRCConfig', () => {
-      return {serverMode, protocolPlugins, serverTimeout};
+      return {backendMode, protocolPlugins, backendTimeout};
     });
 
     requireStub = sinon.spy(function(requireArgument) {
@@ -89,12 +89,12 @@ describe('Test: core/KuzzleProxy', function () {
     should(proxy.config).be.an.Object();
   });
 
-  it('constructor must throw an error if serverMode is bad', () => {
-    serverMode = 'unknown';
+  it('constructor must throw an error if backendMode is bad', () => {
+    backendMode = 'unknown';
 
     (function() {
       new KuzzleProxy();
-    }).should.throw('Server mode option must be either set to "failover" or "round-robin"; "unknown" given');
+    }).should.throw('Backend mode option must be either set to "failover" or "round-robin"; "unknown" given');
   });
 
   it('method getRCConfig must return an object', () => {
@@ -180,7 +180,7 @@ describe('Test: core/KuzzleProxy', function () {
 
     proxy.initBroker();
 
-    should(initBrokerStub.calledWith(proxy.config.serverMode, proxy.context, proxy.config.serverOptions, proxy.config.serverTimeout)).be.true();
+    should(initBrokerStub.calledWith(proxy.config.backendMode, proxy.context, proxy.config.backendOptions, proxy.config.backendTimeout)).be.true();
     should(proxy.context.broker).be.eql(proxy.broker);
   });
 
@@ -189,7 +189,7 @@ describe('Test: core/KuzzleProxy', function () {
     var iniProxyStub = sandbox.stub(proxy.httpProxy, 'init');
 
     proxy.initHttpProxy();
-    should(iniProxyStub.calledWith(proxy.config.serverMode, proxy.context, proxy.config.httpPort)).be.true();
+    should(iniProxyStub.calledWith(proxy.config.backendMode, proxy.context, proxy.config.httpPort)).be.true();
   });
 
 
