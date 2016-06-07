@@ -1,3 +1,3 @@
 var pluginsInstall = require('./lib/core/pluginsInstall');
 
-pluginsInstall('proxy');
+pluginsInstall('proxy', __dirname);

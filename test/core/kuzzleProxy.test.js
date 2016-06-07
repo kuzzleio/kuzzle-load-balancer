@@ -16,6 +16,7 @@ describe('Test: core/KuzzleProxy', function () {
     backendTimeout = 10000,
     aPluginName = 'a-plugin-name',
     anotherPluginName = 'another-plugin-name',
+    dummyRootFolder = 'folder',
     backendMode,
     fs,
     dummyActivatedPlugin = {
@@ -84,7 +85,7 @@ describe('Test: core/KuzzleProxy', function () {
   it('constructor must initialize internal members', () => {
     var proxy;
 
-    proxy = new KuzzleProxy(BackendHandler);
+    proxy = new KuzzleProxy(BackendHandler, dummyRootFolder);
 
     should(proxy.context).be.instanceOf(Context);
     should(proxy.broker).be.instanceOf(Broker);
@@ -98,7 +99,7 @@ describe('Test: core/KuzzleProxy', function () {
 
     sandbox.restore();
 
-    proxy = new KuzzleProxy(BackendHandler);
+    proxy = new KuzzleProxy(BackendHandler, dummyRootFolder);
 
     should(proxy.getRCConfig()).be.an.Object();
   });
@@ -114,7 +115,7 @@ describe('Test: core/KuzzleProxy', function () {
       .withArgs(aPluginName).returns(dummyPluginConstructor(aPluginName))
       .withArgs(anotherPluginName).returns(dummyPluginConstructor(anotherPluginName));
 
-    proxy = new KuzzleProxy(BackendHandler);
+    proxy = new KuzzleProxy(BackendHandler, dummyRootFolder);
 
     pluginStoreAddStub = sandbox.stub(proxy.context.pluginStore, 'add');
     sandbox.stub(proxy.context.pluginStore, 'count').returns(2);
@@ -132,7 +133,7 @@ describe('Test: core/KuzzleProxy', function () {
     sandbox.stub(KuzzleProxy.prototype, 'readPluginsConfiguration').returns(dummyMixedPlugin);
     sandbox.stub(KuzzleProxy.prototype, 'requirePluginPackage').returns(dummyPluginConstructor(aPluginName));
 
-    proxy = new KuzzleProxy(BackendHandler);
+    proxy = new KuzzleProxy(BackendHandler, dummyRootFolder);
 
     proxy.initPlugins();
 
@@ -144,7 +145,7 @@ describe('Test: core/KuzzleProxy', function () {
 
     sandbox.stub(KuzzleProxy.prototype, 'readPluginsConfiguration').returns({});
 
-    proxy = new KuzzleProxy(BackendHandler);
+    proxy = new KuzzleProxy(BackendHandler, dummyRootFolder);
 
     proxy.initPlugins.bind(proxy).should.throw('No plugin has been initialized properly. Shutting down.');
   });
@@ -160,7 +161,7 @@ describe('Test: core/KuzzleProxy', function () {
       .withArgs(anotherPluginName).returns(dummyPluginConstructor(anotherPluginName))
       .withArgs(aPluginName).throws(Error);
 
-    proxy = new KuzzleProxy(BackendHandler);
+    proxy = new KuzzleProxy(BackendHandler, dummyRootFolder);
     pluginStoreAddStub = sandbox.stub(proxy.context.pluginStore, 'add');
     sandbox.stub(proxy.context.pluginStore, 'count').returns(1);
 
@@ -171,7 +172,7 @@ describe('Test: core/KuzzleProxy', function () {
   });
 
   it('method initBroker initializes the broker', () => {
-    var proxy = new KuzzleProxy(BackendHandler);
+    var proxy = new KuzzleProxy(BackendHandler, dummyRootFolder);
     var initBrokerStub = sandbox.stub(proxy.broker, 'init');
 
     proxy.initBroker();
@@ -181,7 +182,7 @@ describe('Test: core/KuzzleProxy', function () {
   });
 
   it('method initHttpProxy initializes the httpProxy', () => {
-    var proxy = new KuzzleProxy(BackendHandler);
+    var proxy = new KuzzleProxy(BackendHandler, dummyRootFolder);
     var iniProxyStub = sandbox.stub(proxy.httpProxy, 'init');
 
     proxy.initHttpProxy();
@@ -200,7 +201,7 @@ describe('Test: core/KuzzleProxy', function () {
       anotherPluginName
     };
 
-    proxy = new KuzzleProxy(BackendHandler);
+    proxy = new KuzzleProxy(BackendHandler, dummyRootFolder);
 
     readOnePluginConfigurationStub = sandbox.stub(KuzzleProxy.prototype, 'readOnePluginConfiguration');
     loadCurrentConfigStub = sandbox.stub(KuzzleProxy.prototype, 'loadCurrentConfig');
@@ -219,7 +220,7 @@ describe('Test: core/KuzzleProxy', function () {
       readOnePluginConfigurationStub,
       loadCurrentConfigStub;
 
-    proxy = new KuzzleProxy(BackendHandler);
+    proxy = new KuzzleProxy(BackendHandler, dummyRootFolder);
 
     readOnePluginConfigurationStub = sandbox.stub(KuzzleProxy.prototype, 'readOnePluginConfiguration');
     loadCurrentConfigStub = sandbox.stub(KuzzleProxy.prototype, 'loadCurrentConfig');
@@ -232,19 +233,19 @@ describe('Test: core/KuzzleProxy', function () {
       anotherPluginName
     };
 
-    proxy.readPluginsConfiguration.bind(proxy).should.throw('No plugin has been activated in configuration. Shutting down.');
+    proxy.readPluginsConfiguration.bind(proxy, dummyRootFolder).should.throw('No plugin has been activated in configuration. Shutting down.');
   });
 
   it('method readPluginsConfiguration throws an Error if no plugin configuration is provided', () => {
     var proxy;
 
-    proxy = new KuzzleProxy(BackendHandler);
+    proxy = new KuzzleProxy(BackendHandler, dummyRootFolder);
 
-    proxy.readPluginsConfiguration.bind(proxy).should.throw('No plugin configuration provided. Shutting down.');
+    proxy.readPluginsConfiguration.bind(proxy, dummyRootFolder).should.throw('No plugin configuration provided. Shutting down.');
   });
 
   it('method requirePluginPackage must return required item', () => {
-    var proxy = new KuzzleProxy(BackendHandler);
+    var proxy = new KuzzleProxy(BackendHandler, dummyRootFolder);
     var getPathPluginStub = sandbox.stub(KuzzleProxy.prototype, 'getPathPlugin').returns('dummy');
 
     proxy.requirePluginPackage('dummy');
@@ -254,7 +255,7 @@ describe('Test: core/KuzzleProxy', function () {
   });
 
   it('method requirePluginConfig must return required item', () => {
-    var proxy = new KuzzleProxy(BackendHandler);
+    var proxy = new KuzzleProxy(BackendHandler, dummyRootFolder);
     var getPathPluginStub = sandbox.stub(KuzzleProxy.prototype, 'getPathPlugin').returns('dummy');
 
     proxy.requirePluginConfig('dummy');
@@ -271,7 +272,7 @@ describe('Test: core/KuzzleProxy', function () {
       }
     };
 
-    proxy = new KuzzleProxy(BackendHandler);
+    proxy = new KuzzleProxy(BackendHandler, dummyRootFolder);
 
     should(proxy.getPathPlugin('dummy')).be.eql('a-path');
   });
@@ -282,7 +283,7 @@ describe('Test: core/KuzzleProxy', function () {
       dummy: {}
     };
 
-    proxy = new KuzzleProxy(BackendHandler);
+    proxy = new KuzzleProxy(BackendHandler, dummyRootFolder);
 
     should(proxy.getPathPlugin('dummy')).be.eql(path.join(__dirname, '..', '..', 'node_modules', 'dummy'));
   });
@@ -292,19 +293,17 @@ describe('Test: core/KuzzleProxy', function () {
       proxy,
       jsonString = '{"dummy": "config"}',
       existsSyncStub,
-      readFileSyncStub,
-      jsonPluginsConfigPath;
+      readFileSyncStub;
 
     fs = KuzzleProxy.__get__('fs');
-    jsonPluginsConfigPath = KuzzleProxy.__get__('jsonPluginsConfigPath');
     existsSyncStub = sinon.stub(fs, 'existsSync').returns(true);
     readFileSyncStub = sinon.stub(fs, 'readFileSync').returns(jsonString);
 
-    proxy = new KuzzleProxy(BackendHandler);
+    proxy = new KuzzleProxy(BackendHandler, dummyRootFolder);
 
-    should(proxy.loadCurrentConfig()).be.deepEqual(JSON.parse(jsonString));
-    should(existsSyncStub.calledWith(jsonPluginsConfigPath)).be.true();
-    should(readFileSyncStub.calledWith(jsonPluginsConfigPath)).be.true();
+    should(proxy.loadCurrentConfig(dummyRootFolder)).be.deepEqual(JSON.parse(jsonString));
+    should(existsSyncStub.calledWith(path.join(dummyRootFolder, 'pluginsConfig.json'))).be.true();
+    should(readFileSyncStub.calledWith(path.join(dummyRootFolder, 'pluginsConfig.json'))).be.true();
 
     existsSyncStub.restore();
     readFileSyncStub.restore();
@@ -313,17 +312,15 @@ describe('Test: core/KuzzleProxy', function () {
   it('method loadCurrentConfig must return an empty object if configuration does not exist', () => {
     var
       proxy,
-      existsSyncStub,
-      jsonPluginsConfigPath;
+      existsSyncStub;
 
     fs = KuzzleProxy.__get__('fs');
-    jsonPluginsConfigPath = KuzzleProxy.__get__('jsonPluginsConfigPath');
     existsSyncStub = sinon.stub(fs, 'existsSync').returns(false);
 
-    proxy = new KuzzleProxy(BackendHandler);
+    proxy = new KuzzleProxy(BackendHandler, dummyRootFolder);
 
-    should(proxy.loadCurrentConfig()).be.deepEqual({});
-    should(existsSyncStub.calledWith(jsonPluginsConfigPath)).be.true();
+    should(proxy.loadCurrentConfig(dummyRootFolder)).be.deepEqual({});
+    should(existsSyncStub.calledWith(path.join(dummyRootFolder, 'pluginsConfig.json'))).be.true();
 
     existsSyncStub.restore();
   });

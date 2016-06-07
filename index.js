@@ -9,7 +9,7 @@ console.log('Starting proxy instance');
 try {
   proxy = new KuzzleProxy(BackendHandler, applicationName);
 
-  proxy.initPlugins();
+  proxy.initPlugins(__dirname);
   proxy.initBroker();
   proxy.initHttpProxy();
 }
