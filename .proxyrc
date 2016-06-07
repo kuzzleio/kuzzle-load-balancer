@@ -1,5 +1,4 @@
 {
-  "toto": "bingo",
   // Protocol plugins configuration
   "protocolPlugins": {
     // Default plugin to communicate with the proxy
