@@ -1,8 +1,13 @@
 var
   KuzzleProxy = require('./lib/core/KuzzleProxy'),
-  proxy = new KuzzleProxy();
+  BackendHandler = require('./lib/service/ProxyBackendHandler'),
+  proxy;
+
+console.log('Starting proxy instance');
 
 try {
+  proxy = new KuzzleProxy(BackendHandler);
+
   proxy.initPlugins();
   proxy.initBroker();
   proxy.initHttpProxy();

@@ -38,6 +38,7 @@ describe('Test: core/KuzzleProxy', function () {
         plugin: 'configuration'
       }
     },
+    BackendHandler,
     dummyPluginConstructor = function (pluginName) {
       return function() {
         return {
@@ -50,12 +51,15 @@ describe('Test: core/KuzzleProxy', function () {
     };
 
   before(() => {
+    sandbox = sinon.sandbox.create();
     KuzzleProxy.__set__('console', {log: () => {}, error: () => {}});
+    BackendHandler = sandbox.spy(function (mode) {
+      should(mode).be.eql(backendMode);
+    });
   });
 
   beforeEach(() => {
-    sandbox = sinon.sandbox.create();
-    backendMode = 'failover';
+    backendMode = 'standard';
     protocolPlugins = {};
 
     sandbox.stub(KuzzleProxy.prototype, 'getRCConfig', () => {
@@ -80,7 +84,7 @@ describe('Test: core/KuzzleProxy', function () {
   it('constructor must initialize internal members', () => {
     var proxy;
 
-    proxy = new KuzzleProxy();
+    proxy = new KuzzleProxy(BackendHandler);
 
     should(proxy.context).be.instanceOf(Context);
     should(proxy.broker).be.instanceOf(Broker);
@@ -89,20 +93,12 @@ describe('Test: core/KuzzleProxy', function () {
     should(proxy.config).be.an.Object();
   });
 
-  it('constructor must throw an error if backendMode is bad', () => {
-    backendMode = 'unknown';
-
-    (function() {
-      new KuzzleProxy();
-    }).should.throw('Backend mode option must be either set to "failover" or "round-robin"; "unknown" given');
-  });
-
   it('method getRCConfig must return an object', () => {
     var proxy;
 
     sandbox.restore();
 
-    proxy = new KuzzleProxy();
+    proxy = new KuzzleProxy(BackendHandler);
 
     should(proxy.getRCConfig()).be.an.Object();
   });
@@ -118,7 +114,7 @@ describe('Test: core/KuzzleProxy', function () {
       .withArgs(aPluginName).returns(dummyPluginConstructor(aPluginName))
       .withArgs(anotherPluginName).returns(dummyPluginConstructor(anotherPluginName));
 
-    proxy = new KuzzleProxy();
+    proxy = new KuzzleProxy(BackendHandler);
 
     pluginStoreAddStub = sandbox.stub(proxy.context.pluginStore, 'add');
     sandbox.stub(proxy.context.pluginStore, 'count').returns(2);
@@ -136,7 +132,7 @@ describe('Test: core/KuzzleProxy', function () {
     sandbox.stub(KuzzleProxy.prototype, 'readPluginsConfiguration').returns(dummyMixedPlugin);
     sandbox.stub(KuzzleProxy.prototype, 'requirePluginPackage').returns(dummyPluginConstructor(aPluginName));
 
-    proxy = new KuzzleProxy();
+    proxy = new KuzzleProxy(BackendHandler);
 
     proxy.initPlugins();
 
@@ -148,7 +144,7 @@ describe('Test: core/KuzzleProxy', function () {
 
     sandbox.stub(KuzzleProxy.prototype, 'readPluginsConfiguration').returns({});
 
-    proxy = new KuzzleProxy();
+    proxy = new KuzzleProxy(BackendHandler);
 
     proxy.initPlugins.bind(proxy).should.throw('No plugin has been initialized properly. Shutting down.');
   });
@@ -164,7 +160,7 @@ describe('Test: core/KuzzleProxy', function () {
       .withArgs(anotherPluginName).returns(dummyPluginConstructor(anotherPluginName))
       .withArgs(aPluginName).throws(Error);
 
-    proxy = new KuzzleProxy();
+    proxy = new KuzzleProxy(BackendHandler);
     pluginStoreAddStub = sandbox.stub(proxy.context.pluginStore, 'add');
     sandbox.stub(proxy.context.pluginStore, 'count').returns(1);
 
@@ -175,23 +171,22 @@ describe('Test: core/KuzzleProxy', function () {
   });
 
   it('method initBroker initializes the broker', () => {
-    var proxy = new KuzzleProxy();
+    var proxy = new KuzzleProxy(BackendHandler);
     var initBrokerStub = sandbox.stub(proxy.broker, 'init');
 
     proxy.initBroker();
 
-    should(initBrokerStub.calledWith(proxy.config.backendMode, proxy.context, proxy.config.backendOptions, proxy.config.backendTimeout)).be.true();
+    should(initBrokerStub.calledWith(proxy.context, proxy.config.backendOptions, proxy.config.backendTimeout)).be.true();
     should(proxy.context.broker).be.eql(proxy.broker);
   });
 
   it('method initHttpProxy initializes the httpProxy', () => {
-    var proxy = new KuzzleProxy();
+    var proxy = new KuzzleProxy(BackendHandler);
     var iniProxyStub = sandbox.stub(proxy.httpProxy, 'init');
 
     proxy.initHttpProxy();
     should(iniProxyStub.calledWith(proxy.config.backendMode, proxy.context, proxy.config.httpPort)).be.true();
   });
-
 
   it('method readPluginsConfiguration must return the configuration of the plugins', () => {
     var
@@ -205,7 +200,7 @@ describe('Test: core/KuzzleProxy', function () {
       anotherPluginName
     };
 
-    proxy = new KuzzleProxy();
+    proxy = new KuzzleProxy(BackendHandler);
 
     readOnePluginConfigurationStub = sandbox.stub(KuzzleProxy.prototype, 'readOnePluginConfiguration');
     loadCurrentConfigStub = sandbox.stub(KuzzleProxy.prototype, 'loadCurrentConfig');
@@ -224,7 +219,7 @@ describe('Test: core/KuzzleProxy', function () {
       readOnePluginConfigurationStub,
       loadCurrentConfigStub;
 
-    proxy = new KuzzleProxy();
+    proxy = new KuzzleProxy(BackendHandler);
 
     readOnePluginConfigurationStub = sandbox.stub(KuzzleProxy.prototype, 'readOnePluginConfiguration');
     loadCurrentConfigStub = sandbox.stub(KuzzleProxy.prototype, 'loadCurrentConfig');
@@ -243,13 +238,13 @@ describe('Test: core/KuzzleProxy', function () {
   it('method readPluginsConfiguration throws an Error if no plugin configuration is provided', () => {
     var proxy;
 
-    proxy = new KuzzleProxy();
+    proxy = new KuzzleProxy(BackendHandler);
 
     proxy.readPluginsConfiguration.bind(proxy).should.throw('No plugin configuration provided. Shutting down.');
   });
 
   it('method requirePluginPackage must return required item', () => {
-    var proxy = new KuzzleProxy();
+    var proxy = new KuzzleProxy(BackendHandler);
     var getPathPluginStub = sandbox.stub(KuzzleProxy.prototype, 'getPathPlugin').returns('dummy');
 
     proxy.requirePluginPackage('dummy');
@@ -259,7 +254,7 @@ describe('Test: core/KuzzleProxy', function () {
   });
 
   it('method requirePluginConfig must return required item', () => {
-    var proxy = new KuzzleProxy();
+    var proxy = new KuzzleProxy(BackendHandler);
     var getPathPluginStub = sandbox.stub(KuzzleProxy.prototype, 'getPathPlugin').returns('dummy');
 
     proxy.requirePluginConfig('dummy');
@@ -276,7 +271,7 @@ describe('Test: core/KuzzleProxy', function () {
       }
     };
 
-    proxy = new KuzzleProxy();
+    proxy = new KuzzleProxy(BackendHandler);
 
     should(proxy.getPathPlugin('dummy')).be.eql('a-path');
   });
@@ -287,7 +282,7 @@ describe('Test: core/KuzzleProxy', function () {
       dummy: {}
     };
 
-    proxy = new KuzzleProxy();
+    proxy = new KuzzleProxy(BackendHandler);
 
     should(proxy.getPathPlugin('dummy')).be.eql(path.join(__dirname, '..', '..', 'node_modules', 'dummy'));
   });
@@ -305,7 +300,7 @@ describe('Test: core/KuzzleProxy', function () {
     existsSyncStub = sinon.stub(fs, 'existsSync').returns(true);
     readFileSyncStub = sinon.stub(fs, 'readFileSync').returns(jsonString);
 
-    proxy = new KuzzleProxy();
+    proxy = new KuzzleProxy(BackendHandler);
 
     should(proxy.loadCurrentConfig()).be.deepEqual(JSON.parse(jsonString));
     should(existsSyncStub.calledWith(jsonPluginsConfigPath)).be.true();
@@ -325,7 +320,7 @@ describe('Test: core/KuzzleProxy', function () {
     jsonPluginsConfigPath = KuzzleProxy.__get__('jsonPluginsConfigPath');
     existsSyncStub = sinon.stub(fs, 'existsSync').returns(false);
 
-    proxy = new KuzzleProxy();
+    proxy = new KuzzleProxy(BackendHandler);
 
     should(proxy.loadCurrentConfig()).be.deepEqual({});
     should(existsSyncStub.calledWith(jsonPluginsConfigPath)).be.true();
