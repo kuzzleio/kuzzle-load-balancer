@@ -1,7 +1,7 @@
 {
   // Protocol plugins configuration
   "protocolPlugins": {
-    // Default plugin to communicate with the load balancer
+    // Default plugin to communicate with the proxy
     "kuzzle-plugin-socketio": {
       "npmVersion": "1.1.0"
     }

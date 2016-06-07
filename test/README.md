@@ -1,5 +1,5 @@
 # Unit testing
-Tests the Kuzzle Load balancer code using [mocha](http://mochajs.org/) and [should.js](https://github.com/shouldjs/should.js),
+Tests the Kuzzle Proxy code using [mocha](http://mochajs.org/) and [should.js](https://github.com/shouldjs/should.js),
 as well as [istanbul](https://gotwarlost.github.io/istanbul/) for test coverage.
 
 ## Running Unit Tests
