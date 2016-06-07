@@ -192,7 +192,6 @@ describe('Test: core/KuzzleProxy', function () {
     should(iniProxyStub.calledWith(proxy.config.backendMode, proxy.context, proxy.config.httpPort)).be.true();
   });
 
-
   it('method readPluginsConfiguration must return the configuration of the plugins', () => {
     var
       proxy,
