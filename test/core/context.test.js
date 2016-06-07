@@ -2,7 +2,7 @@ var
   should = require('should'),
   Context = require.main.require('lib/core/Context'),
   ClientConnectionStore = require.main.require('lib/store/ClientConnection'),
-  ServerConnectionStore = require.main.require('lib/store/ServerConnection'),
+  BackendConnectionStore = require.main.require('lib/store/BackendConnection'),
   PluginStore = require.main.require('lib/store/Plugin'),
   Router = require.main.require('lib/service/Router');
 
@@ -17,7 +17,7 @@ describe('Test: core/Context', function () {
 
     should(context.broker).be.null();
     should(context.clientConnectionStore).be.instanceOf(ClientConnectionStore);
-    should(context.serverConnectionStore).be.instanceOf(ServerConnectionStore);
+    should(context.backendConnectionStore).be.instanceOf(BackendConnectionStore);
     should(context.pluginStore).be.instanceOf(PluginStore);
     should(context.router).be.instanceOf(Router);
   });

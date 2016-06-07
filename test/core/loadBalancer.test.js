@@ -13,10 +13,10 @@ describe('Test: core/LoadBalancer', function () {
     sandbox,
     requireStub,
     protocolPlugins,
-    serverTimeout = 10000,
+    backendTimeout = 10000,
     aPluginName = 'a-plugin-name',
     anotherPluginName = 'another-plugin-name',
-    serverMode,
+    backendMode,
     fs,
     dummyActivatedPlugin = {
       [aPluginName]: {
@@ -55,11 +55,11 @@ describe('Test: core/LoadBalancer', function () {
 
   beforeEach(() => {
     sandbox = sinon.sandbox.create();
-    serverMode = 'failover';
+    backendMode = 'failover';
     protocolPlugins = {};
 
     sandbox.stub(LoadBalancer.prototype, 'getRCConfig', () => {
-      return {serverMode, protocolPlugins, serverTimeout};
+      return {backendMode, protocolPlugins, backendTimeout};
     });
 
     requireStub = sinon.spy(function(requireArgument) {
@@ -89,12 +89,12 @@ describe('Test: core/LoadBalancer', function () {
     should(loadBalancer.config).be.an.Object();
   });
 
-  it('constructor must throw an error if serverMode is bad', () => {
-    serverMode = 'unknown';
+  it('constructor must throw an error if backendMode is bad', () => {
+    backendMode = 'unknown';
 
     (function() {
       new LoadBalancer();
-    }).should.throw('Server mode option must be either set to "failover" or "round-robin"; "unknown" given');
+    }).should.throw('Backend mode option must be either set to "failover" or "round-robin"; "unknown" given');
   });
 
   it('method getRCConfig must return an object', () => {
@@ -180,7 +180,7 @@ describe('Test: core/LoadBalancer', function () {
 
     loadBalancer.initBroker();
 
-    should(initBrokerStub.calledWith(loadBalancer.config.serverMode, loadBalancer.context, loadBalancer.config.serverOptions, loadBalancer.config.serverTimeout)).be.true();
+    should(initBrokerStub.calledWith(loadBalancer.config.backendMode, loadBalancer.context, loadBalancer.config.backendOptions, loadBalancer.config.backendTimeout)).be.true();
     should(loadBalancer.context.broker).be.eql(loadBalancer.broker);
   });
 
@@ -189,7 +189,7 @@ describe('Test: core/LoadBalancer', function () {
     var iniProxyStub = sandbox.stub(loadBalancer.httpProxy, 'init');
 
     loadBalancer.initHttpProxy();
-    should(iniProxyStub.calledWith(loadBalancer.config.serverMode, loadBalancer.context, loadBalancer.config.httpPort)).be.true();
+    should(iniProxyStub.calledWith(loadBalancer.config.backendMode, loadBalancer.context, loadBalancer.config.httpPort)).be.true();
   });
 
 

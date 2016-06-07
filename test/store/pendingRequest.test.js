@@ -74,7 +74,7 @@ describe('Test: store/PendingRequest', function () {
 
     pendingRequest.add(dummyPendingExist);
 
-    /** TODO: Test if the callback of setTimeout is called after the delay in this.serverTimeout **/
+    /** TODO: Test if the callback of setTimeout is called after the delay in this.backendTimeout **/
 
     should(spyWithReturnTimeout.calledOnce).be.true();
     should(pendingRequest.pending[dummyPendingExist.message.data.request.requestId]).be.deepEqual(dummyPendingExist);
