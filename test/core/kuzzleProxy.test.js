@@ -112,15 +112,15 @@ describe('Test: core/KuzzleProxy', function () {
     sandbox.stub(KuzzleProxy.prototype, 'readPluginsConfiguration').returns(dummyActivatedPlugin);
     sandbox
       .stub(KuzzleProxy.prototype, 'requirePluginPackage')
-      .withArgs(aPluginName).returns(dummyPluginConstructor(aPluginName))
-      .withArgs(anotherPluginName).returns(dummyPluginConstructor(anotherPluginName));
+      .withArgs(dummyRootFolder, aPluginName).returns(dummyPluginConstructor(aPluginName))
+      .withArgs(dummyRootFolder, anotherPluginName).returns(dummyPluginConstructor(anotherPluginName));
 
     proxy = new KuzzleProxy(BackendHandler, dummyRootFolder);
 
     pluginStoreAddStub = sandbox.stub(proxy.context.pluginStore, 'add');
     sandbox.stub(proxy.context.pluginStore, 'count').returns(2);
 
-    proxy.initPlugins();
+    proxy.initPlugins(dummyRootFolder);
 
     should(pluginStoreAddStub.getCall(0).args[0].pluginName).be.eql(aPluginName);
     should(pluginStoreAddStub.getCall(1).args[0].pluginName).be.eql(anotherPluginName);
@@ -135,7 +135,7 @@ describe('Test: core/KuzzleProxy', function () {
 
     proxy = new KuzzleProxy(BackendHandler, dummyRootFolder);
 
-    proxy.initPlugins();
+    proxy.initPlugins(dummyRootFolder);
 
     should(proxy.context.pluginStore.count()).be.eql(1);
   });
@@ -158,14 +158,14 @@ describe('Test: core/KuzzleProxy', function () {
     sandbox.stub(KuzzleProxy.prototype, 'readPluginsConfiguration').returns(dummyActivatedPlugin);
     sandbox
       .stub(KuzzleProxy.prototype, 'requirePluginPackage')
-      .withArgs(anotherPluginName).returns(dummyPluginConstructor(anotherPluginName))
-      .withArgs(aPluginName).throws(Error);
+      .withArgs(dummyRootFolder, anotherPluginName).returns(dummyPluginConstructor(anotherPluginName))
+      .withArgs(dummyRootFolder, aPluginName).throws(Error);
 
     proxy = new KuzzleProxy(BackendHandler, dummyRootFolder);
     pluginStoreAddStub = sandbox.stub(proxy.context.pluginStore, 'add');
     sandbox.stub(proxy.context.pluginStore, 'count').returns(1);
 
-    proxy.initPlugins();
+    proxy.initPlugins(dummyRootFolder);
 
     should(pluginStoreAddStub.getCall(0).args[0].pluginName).be.eql(anotherPluginName);
     should(pluginStoreAddStub.callCount).be.eql(1);
@@ -274,7 +274,7 @@ describe('Test: core/KuzzleProxy', function () {
 
     proxy = new KuzzleProxy(BackendHandler, dummyRootFolder);
 
-    should(proxy.getPathPlugin('dummy')).be.eql('a-path');
+    should(proxy.getPathPlugin(dummyRootFolder, 'dummy')).be.eql('a-path');
   });
 
   it('method getPathPlugin must return a path from node_module if no path defined in configuration', () => {
@@ -285,7 +285,7 @@ describe('Test: core/KuzzleProxy', function () {
 
     proxy = new KuzzleProxy(BackendHandler, dummyRootFolder);
 
-    should(proxy.getPathPlugin('dummy')).be.eql(path.join(__dirname, '..', '..', 'node_modules', 'dummy'));
+    should(proxy.getPathPlugin(dummyRootFolder, 'dummy')).be.eql(path.join(dummyRootFolder, 'node_modules', 'dummy'));
   });
 
   it('method loadCurrentConfig must return the configuration', () => {
