@@ -8,10 +8,10 @@ describe('Test: testTemplate', function () {
     sandbox;
 
   before(() => {
+    sandbox = sinon.sandbox.create();
   });
 
   beforeEach(() => {
-    sandbox = sinon.sandbox.create();
   });
 
   afterEach(() => {
