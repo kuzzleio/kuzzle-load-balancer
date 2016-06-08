@@ -44,31 +44,37 @@ describe('Test: service/Backend', function () {
   });
 
   it('method Constructor must initiate properly and plug good listeners to events', () => {
-    var dummySocket = new EventEmitter();
+    var
+      backend,
+      dummySocket = new EventEmitter(),
+      onConnectionCloseStub = sandbox.stub(Backend.prototype, 'onConnectionClose'),
+      onConnectionErrorStub = sandbox.stub(Backend.prototype, 'onConnectionError'),
+      onMessageStub = sandbox.stub(Backend.prototype, 'onMessage'),
+      messageRoomsStub = sandbox
+        .stub(Backend.prototype, 'initializeMessageRooms')
+        .returns({});
+
+
     dummySocket.upgradeReq = {
       connection: {
         remoteAddress: dummyAddress
       }
     };
 
-    var onConnectionCloseStub = sandbox.stub(Backend.prototype, 'onConnectionClose');
-    var onConnectionErrorStub = sandbox.stub(Backend.prototype, 'onConnectionError');
-    var onMessageStub = sandbox.stub(Backend.prototype, 'onMessage');
+    backend = new Backend(dummySocket, dummyContext, dummyTimeout);
 
-    var backend = new Backend(dummySocket, dummyContext, dummyTimeout);
-
-    dummySocket.emit('close');
-    dummySocket.emit('error');
-    dummySocket.emit('message');
+    backend.socket.emit('close');
+    backend.socket.emit('error');
+    backend.socket.emit('message');
 
     should(onConnectionCloseStub.calledOnce).be.true();
     should(onConnectionErrorStub.calledOnce).be.true();
+    should(messageRoomsStub.calledOnce).be.true();
     should(onMessageStub.calledOnce).be.true();
     should(backend.backendRequestStore).be.instanceOf(PendingRequest);
-    should(backend.socket).be.eql(dummySocket);
-    should(backend.context).be.eql(dummyContext);
     should(backend.httpPort).be.eql(null);
     should(backend.httpPortCallback).be.eql(null);
+    should(backend.onMessageRooms).be.an.Object();
   });
 
   describe('method onMessage', () => {
