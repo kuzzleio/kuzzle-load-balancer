@@ -1,11 +1,11 @@
 var
-  LoadBalancer = require('./lib/core/LoadBalancer'),
-  loadBalancer = new LoadBalancer();
+  KuzzleProxy = require('./lib/core/KuzzleProxy'),
+  proxy = new KuzzleProxy();
 
 try {
-  loadBalancer.initPlugins();
-  loadBalancer.initBroker();
-  loadBalancer.initHttpProxy();
+  proxy.initPlugins();
+  proxy.initBroker();
+  proxy.initHttpProxy();
 }
 catch (error) {
   console.error(error);

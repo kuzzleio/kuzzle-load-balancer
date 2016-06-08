@@ -1,7 +1,7 @@
 {
-  "name": "kuzzle-load-balancer",
+  "name": "kuzzle-proxy",
   "version": "0.0.1",
-  "description": "Kuzzle load-balancer multiplexer",
+  "description": "Kuzzle proxy multiplexer",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
@@ -12,14 +12,14 @@
     "codecov": "cat ./coverage/lcov.info | ./node_modules/.bin/codecov"
   },
   "keywords": [
-    "load-balancer",
+    "proxy",
     "multiplexer"
   ],
   "author": "The Kuzzle Team <support@kuzzle.io>",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/kuzzleio/kuzzle-load-balancer.git"
+    "url": "https://github.com/kuzzleio/kuzzle-proxy.git"
   },
   "dependencies": {
     "async": "^2.0.0-rc.5",
