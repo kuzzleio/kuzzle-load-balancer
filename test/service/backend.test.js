@@ -78,7 +78,21 @@ describe('Test: service/Backend', function () {
   });
 
   describe('method onMessage', () => {
-    it('onMessage must throw an error if JSON.parse does not do what is expected', () => {
+    it('onMessage must write a console error if the message contains no room', () => {
+      var
+        backend = initBackend(dummyContext),
+        badMessage = {
+          no: 'room'
+        },
+        badMessageString = JSON.stringify(badMessage),
+        error = 'SyntaxError: Unexpected token u';
+
+      backend.onMessage(badMessageString);
+
+      should(spyConsoleError.calledWith(`Room is not specified in message: ${badMessageString}`)).be.true();
+    });
+
+    it('onMessage must write a console error if JSON.parse does not do what is expected', () => {
       var
         backend = initBackend(dummyContext),
         badMessage = 'unexpected',
