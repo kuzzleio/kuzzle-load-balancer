@@ -84,8 +84,7 @@ describe('Test: service/Backend', function () {
         badMessage = {
           no: 'room'
         },
-        badMessageString = JSON.stringify(badMessage),
-        error = 'SyntaxError: Unexpected token u';
+        badMessageString = JSON.stringify(badMessage);
 
       backend.onMessage(badMessageString);
 
