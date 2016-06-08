@@ -9,9 +9,8 @@
   // Timeout when a request is aborted and an error is returned in ms
   // Default: 10000
   "backendTimeout": 10000,
-  // Backend mode to choose between "failover" and "round-robin"
-  // Default: failover
-  "backendMode": "failover",
+  // Open source version only supports standard mode
+  "backendMode": "standard",
   "backendOptions": {
     // Broker port waiting for connections
     "port": 7331
