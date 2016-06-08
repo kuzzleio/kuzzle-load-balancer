@@ -2,7 +2,9 @@ var
   should = require('should'),
   sandbox = require('sinon').sandbox.create(),
   rewire = require('rewire'),
-  PendingRequest = rewire('../../lib/store/PendingRequest');
+  q = require('q'),
+  PendingRequest = rewire('../../lib/store/PendingRequest'),
+  InternalError = require('kuzzle-common-objects').Errors.internalError;
 
 describe('Test: store/PendingRequest', function () {
   var
@@ -50,7 +52,6 @@ describe('Test: store/PendingRequest', function () {
     spySetTimeout = sandbox.stub();
 
     PendingRequest.__set__('clearTimeout', spyClearTimeout);
-    PendingRequest.__set__('setTimeout', spySetTimeout);
   });
 
   afterEach(() => {
@@ -63,6 +64,37 @@ describe('Test: store/PendingRequest', function () {
     should(pendingRequest.pending).be.an.Object();
   });
 
+  // /!\ Biazed test, we do it first to avoid setTimeout overrides
+  it('method add creates a setTimeout that rejects the promise after a certain amount of time', (done) => {
+    var
+      deferred = q.defer(),
+      pendingRequest = new PendingRequest(100),
+      dummyPendingWithPromise = {
+        message: {
+          data: {
+            connection: {},
+            request: {
+              requestId: 'exists'
+            }
+          }
+        },
+        timeout: 'timeoutDummyPendingExist',
+        promise: deferred
+      };
+
+    pendingRequest.add(dummyPendingWithPromise);
+
+    deferred.promise
+      .done(function () {
+        // We should never arrive here
+        should(false).be.true();
+        done();
+      }, function (error) {
+        should(error).be.instanceOf(InternalError);
+        done();
+      });
+  });
+
   it('method add must add an item to the pending', () => {
     var
       pendingRequest = new PendingRequest(),
@@ -73,8 +105,6 @@ describe('Test: store/PendingRequest', function () {
     PendingRequest.__set__('setTimeout', spyWithReturnTimeout);
 
     pendingRequest.add(dummyPendingExist);
-
-    /** TODO: Test if the callback of setTimeout is called after the delay in this.backendTimeout **/
 
     should(spyWithReturnTimeout.calledOnce).be.true();
     should(pendingRequest.pending[dummyPendingExist.message.data.request.requestId]).be.deepEqual(dummyPendingExist);
