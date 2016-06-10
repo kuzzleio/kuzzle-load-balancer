@@ -8,9 +8,7 @@ var
 
 describe('Test: core/Context', function () {
   var
-    dummyBroker = {
-      dummy: 'broker'
-    },
+    dummyBroker = {dummy: 'broker'},
     backendMode = 'aMode',
     BackendHandler,
     sandbox;
