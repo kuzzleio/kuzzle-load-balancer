@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/kuzzleio/kuzzle-proxy.svg?branch=master)](https://travis-ci.org/kuzzleio/kuzzle-proxy) [![codecov.io](http://codecov.io/github/kuzzleio/kuzzle-proxy/coverage.svg?branch=master)](http://codecov.io/github/kuzzleio/kuzzle-proxy?branch=master) [![Dependency Status](https://david-dm.org/kuzzleio/kuzzle-proxy.svg)](https://david-dm.org/kuzzleio/kuzzle-proxy)
+
 # Kuzzle Proxy
 
 Node.js proxy and multiplexer
