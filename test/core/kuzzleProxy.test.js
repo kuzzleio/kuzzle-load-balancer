@@ -27,24 +27,13 @@ describe('Test: core/KuzzleProxy', function () {
       [aPluginName]: {activated: true, plugin: 'configuration'},
       [anotherPluginName]: {activated: false, plugin: 'configuration'}
     },
-    dummyActivatedPluginConfig = {
-      [aPluginName]: {activated: true, dummy: 'configuration'}
-    },
-    dummyDeactivatedPluginConfig = {
-      [aPluginName]: {activated: false, dummy: 'configuration'}
-    },
-    dummyUndefinedActivationPluginConfig = {
-      [aPluginName]: {dummy: 'configuration'}
-    },
+    dummyActivatedPluginConfig = {[aPluginName]: {activated: true, dummy: 'configuration'}},
+    dummyDeactivatedPluginConfig = {[aPluginName]: {activated: false, dummy: 'configuration'}},
+    dummyUndefinedActivationPluginConfig = {[aPluginName]: {dummy: 'configuration'}},
     BackendHandler,
     dummyPluginConstructor = function (pluginName) {
       return function() {
-        return {
-          pluginName,
-          protocol: pluginName,
-          init: function () {
-          }
-        };
+        return {pluginName, protocol: pluginName, init: () => {}};
       };
     },
     spyConsoleError;
