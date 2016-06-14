@@ -27,7 +27,7 @@ describe('Test: core/Context', function () {
   it('constructor must initialize internal members', () => {
     var context = new Context(BackendHandler, backendMode);
 
-    should(context.broker).be.null();
+    should(context.broker).be.eql(null);
     should(context.clientConnectionStore).be.instanceOf(ClientConnectionStore);
     should(BackendHandler.calledWithNew()).be.true();
     should(BackendHandler.calledWith(backendMode)).be.true();
