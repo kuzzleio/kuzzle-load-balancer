@@ -11,38 +11,17 @@ describe('Test: store/PendingRequest', function () {
     spyClearTimeout,
     spySetTimeout,
     dummyPendingExist = {
-      message: {
-        data: {
-          connection: {},
-          request: {
-            requestId: 'exists'
-          }
-        }
-      },
+      message: {data: {connection: {}, request: {requestId: 'exists'}}},
       timeout: 'timeoutDummyPendingExist',
       promise: {}
     },
     dummyPendingDoesNotExist = {
-      message: {
-        data: {
-          connection: {},
-          request: {
-            requestId: 'doesnotexist'
-          }
-        }
-      },
+      message: {data: {connection: {}, request: {requestId: 'doesnotexist'}}},
       timeout: 'timeoutDummyPendingDoesNotExist',
       promise: {}
     },
     dummyInvalidPending = {
-      message: {
-        data: {
-          connection: {},
-          notARequest: {
-            notARequestId: 'invalid'
-          }
-        }
-      },
+      message: {data: {connection: {}, notARequest: {notARequestId: 'invalid'}}},
       timeout: 'timeoutDummyInvalidPending',
       promise: {}
     };
@@ -70,14 +49,7 @@ describe('Test: store/PendingRequest', function () {
       deferred = q.defer(),
       pendingRequest = new PendingRequest(100),
       dummyPendingWithPromise = {
-        message: {
-          data: {
-            connection: {},
-            request: {
-              requestId: 'exists'
-            }
-          }
-        },
+        message: {data: {connection: {}, request: {requestId: 'exists'}}},
         timeout: 'timeoutDummyPendingExist',
         promise: deferred
       };
@@ -122,9 +94,7 @@ describe('Test: store/PendingRequest', function () {
   it('method getByRequestId must return an item to the pending if it exists', () => {
     var pendingRequest = new PendingRequest();
 
-    pendingRequest.pending = {
-      [dummyPendingExist.message.data.request.requestId]: dummyPendingExist
-    };
+    pendingRequest.pending = {[dummyPendingExist.message.data.request.requestId]: dummyPendingExist};
 
     should(pendingRequest.getByRequestId(dummyPendingExist.message.data.request.requestId)).be.deepEqual(dummyPendingExist);
   });
@@ -132,9 +102,7 @@ describe('Test: store/PendingRequest', function () {
   it('method getByRequestId must return undefined if an item does not exist in pending', () => {
     var pendingRequest = new PendingRequest();
 
-    pendingRequest.pending = {
-      [dummyPendingExist.message.data.request.requestId]: dummyPendingExist
-    };
+    pendingRequest.pending = {[dummyPendingExist.message.data.request.requestId]: dummyPendingExist};
 
     should(pendingRequest.getByRequestId(dummyPendingDoesNotExist.message.data.request.requestId)).be.undefined();
   });
@@ -142,9 +110,7 @@ describe('Test: store/PendingRequest', function () {
   it('method existsByRequestId must return true if the item exists', () => {
     var pendingRequest = new PendingRequest();
 
-    pendingRequest.pending = {
-      [dummyPendingExist.message.data.request.requestId]: dummyPendingExist
-    };
+    pendingRequest.pending = {[dummyPendingExist.message.data.request.requestId]: dummyPendingExist};
 
     should(pendingRequest.existsByRequestId(dummyPendingExist.message.data.request.requestId)).be.true();
   });
@@ -152,9 +118,7 @@ describe('Test: store/PendingRequest', function () {
   it('method existsByRequestId must return false if the item does not exist', () => {
     var pendingRequest = new PendingRequest();
 
-    pendingRequest.pending = {
-      [dummyPendingExist.message.data.request.requestId]: dummyPendingExist
-    };
+    pendingRequest.pending = {[dummyPendingExist.message.data.request.requestId]: dummyPendingExist};
 
     should(pendingRequest.existsByRequestId(dummyPendingDoesNotExist.message.data.request.requestId)).be.false();
   });
@@ -162,9 +126,7 @@ describe('Test: store/PendingRequest', function () {
   it('method removeByRequestId must remove an item from pending if it exist', () => {
     var pendingRequest = new PendingRequest();
 
-    pendingRequest.pending = {
-      [dummyPendingExist.message.data.request.requestId]: dummyPendingExist
-    };
+    pendingRequest.pending = {[dummyPendingExist.message.data.request.requestId]: dummyPendingExist};
 
     pendingRequest.removeByRequestId(dummyPendingExist.message.data.request.requestId);
 
@@ -175,9 +137,7 @@ describe('Test: store/PendingRequest', function () {
   it('method removeByRequestId must not remove an item from pending if it does not exist', () => {
     var pendingRequest = new PendingRequest();
 
-    pendingRequest.pending = {
-      [dummyPendingExist.message.data.request.requestId]: dummyPendingExist
-    };
+    pendingRequest.pending = {[dummyPendingExist.message.data.request.requestId]: dummyPendingExist};
 
     pendingRequest.removeByRequestId(dummyPendingDoesNotExist.message.data.request.requestId);
 
@@ -188,9 +148,7 @@ describe('Test: store/PendingRequest', function () {
   it('method remove must remove an item from pending if it exist', () => {
     var pendingRequest = new PendingRequest();
 
-    pendingRequest.pending = {
-      [dummyPendingExist.message.data.request.requestId]: dummyPendingExist
-    };
+    pendingRequest.pending = {[dummyPendingExist.message.data.request.requestId]: dummyPendingExist};
 
     pendingRequest.remove(dummyPendingExist);
 
@@ -201,9 +159,7 @@ describe('Test: store/PendingRequest', function () {
   it('method remove must not remove an item from pending if it does not exist', () => {
     var pendingRequest = new PendingRequest();
 
-    pendingRequest.pending = {
-      [dummyPendingExist.message.data.request.requestId]: dummyPendingExist
-    };
+    pendingRequest.pending = {[dummyPendingExist.message.data.request.requestId]: dummyPendingExist};
 
     pendingRequest.remove(dummyPendingDoesNotExist);
 
@@ -214,9 +170,7 @@ describe('Test: store/PendingRequest', function () {
   it('method remove must not remove an item from pending if argument is invalid', () => {
     var pendingRequest = new PendingRequest();
 
-    pendingRequest.pending = {
-      [dummyPendingExist.message.data.request.requestId]: dummyPendingExist
-    };
+    pendingRequest.pending = {[dummyPendingExist.message.data.request.requestId]: dummyPendingExist};
 
     pendingRequest.remove(dummyInvalidPending);
 
@@ -227,9 +181,7 @@ describe('Test: store/PendingRequest', function () {
   it('method clear must empty the pending', () => {
     var pendingRequest = new PendingRequest();
 
-    pendingRequest.pending = {
-      [dummyPendingExist.message.data.request.requestId]: dummyPendingExist
-    };
+    pendingRequest.pending = {[dummyPendingExist.message.data.request.requestId]: dummyPendingExist};
 
     pendingRequest.clear();
 
@@ -240,9 +192,7 @@ describe('Test: store/PendingRequest', function () {
   it('method getAll must return the pending', () => {
     var pendingRequest = new PendingRequest();
 
-    pendingRequest.pending = {
-      [dummyPendingExist.message.data.request.requestId]: dummyPendingExist
-    };
+    pendingRequest.pending = {[dummyPendingExist.message.data.request.requestId]: dummyPendingExist};
 
     should(pendingRequest.getAll()).be.deepEqual(pendingRequest.pending);
   });
