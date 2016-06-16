@@ -115,7 +115,7 @@ describe('Test: core/KuzzleProxy', function () {
     should(pluginStoreAddStub.callCount).be.eql(2);
   });
 
-  it('method initPlugins must initialize plugins when activated', () => {
+  it('method initPlugins must have the proper effect on plugin store', () => {
     var proxy;
 
     sandbox.stub(KuzzleProxy.prototype, 'readPluginsConfiguration').returns(dummyMixedPlugin);
