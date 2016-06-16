@@ -48,6 +48,6 @@ describe('Test: core/Context', function () {
   it('method getRouter must return the router', () => {
     var context = new Context(BackendHandler, backendMode);
 
-    should(context.getRouter()).be.deepEqual(context.router);
+    should(context.accessors.router).be.deepEqual(context.router);
   });
 });
