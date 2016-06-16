@@ -117,7 +117,9 @@ describe('#Test: service/Router', function () {
           brokerCallback: sandbox.spy((message, deferred) => deferred.reject(dummyError)),
           addEnvelope: sandbox.stub().returnsArg(0)
         },
-        ResponseObject: sandbox.stub().returnsArg(1)
+        constructors: {
+          ResponseObject: sandbox.stub().returnsArg(1)
+        }
       },
       router = new Router(dummyContext),
       dummyRequest = 'a request',
@@ -134,9 +136,9 @@ describe('#Test: service/Router', function () {
         should(dummyContext.broker.brokerCallback.args[0][0]).be.eql(dummyRequest);
         should(dummyContext.broker.addEnvelope.calledOnce).be.true();
         should(dummyContext.broker.addEnvelope.calledWith(dummyRequest, dummyConnection, 'request')).be.true();
-        should(dummyContext.ResponseObject.calledWithNew()).be.true();
-        should(dummyContext.ResponseObject.args[0][0]).be.eql(dummyRequest);
-        should(dummyContext.ResponseObject.args[0][1]).be.eql(dummyError);
+        should(dummyContext.constructors.ResponseObject.calledWithNew()).be.true();
+        should(dummyContext.constructors.ResponseObject.args[0][0]).be.eql(dummyRequest);
+        should(dummyContext.constructors.ResponseObject.args[0][1]).be.eql(dummyError);
         should(response).be.eql(dummyError);
 
         done();
