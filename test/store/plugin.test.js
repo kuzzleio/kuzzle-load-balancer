@@ -4,18 +4,9 @@ var
 
 describe('Test: store/Plugin', function () {
   var
-    dummyPluginExist = {
-      protocol: 'exists',
-      dummy: 'data'
-    },
-    dummyPluginDoesNotExist = {
-      protocol: 'doesnotexist',
-      dummy: 'data'
-    },
-    dummyInvalidPlugin = {
-      notAProtocol: 'invalid',
-      dummy: 'data'
-    };
+    dummyPluginExist = {protocol: 'exists', dummy: 'data'},
+    dummyPluginDoesNotExist = {protocol: 'doesnotexist', dummy: 'data'},
+    dummyInvalidPlugin = {notAProtocol: 'invalid', dummy: 'data'};
 
   it('constructor must initialize plugins', () => {
     var pluginStore = new PluginStore();
@@ -43,9 +34,7 @@ describe('Test: store/Plugin', function () {
   it('method getByProtocol must return an item if plugin exists', () => {
     var pluginStore = new PluginStore();
     
-    pluginStore.plugins = {
-      [dummyPluginExist.protocol]: dummyPluginExist
-    };
+    pluginStore.plugins = {[dummyPluginExist.protocol]: dummyPluginExist };
 
     should(pluginStore.getByProtocol(dummyPluginExist.protocol)).be.deepEqual(dummyPluginExist);
   });
@@ -53,19 +42,15 @@ describe('Test: store/Plugin', function () {
   it('method getByProtocol must return undefined if plugin does not exist', () => {
     var pluginStore = new PluginStore();
 
-    pluginStore.plugins = {
-      [dummyPluginExist.protocol]: dummyPluginExist
-    };
+    pluginStore.plugins = {[dummyPluginExist.protocol]: dummyPluginExist};
 
     should(pluginStore.getByProtocol(dummyPluginDoesNotExist.protocol)).be.undefined();
   });
 
-  it('method getByProtocol must return undefined if plugin does not exist', () => {
+  it('method count must count the number of declared plugins properly', () => {
     var pluginStore = new PluginStore();
 
-    pluginStore.plugins = {
-      [dummyPluginExist.protocol]: dummyPluginExist
-    };
+    pluginStore.plugins = {[dummyPluginExist.protocol]: dummyPluginExist};
 
     should(pluginStore.count()).be.eql(1);
   });
