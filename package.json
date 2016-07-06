@@ -35,16 +35,16 @@
   },
   "devDependencies": {
     "codecov.io": "^0.1.6",
-    "eslint": "2.8.0",
+    "eslint": "3.0.1",
     "grunt": "^1.0.1",
     "grunt-contrib-jshint": "^1.0.0",
     "gruntify-eslint": "^2.0.0",
-    "istanbul": "0.4.3",
+    "istanbul": "0.4.4",
     "istanbul-middleware": "0.2.2",
-    "mocha": "2.4.5",
-    "rewire": "2.5.1",
-    "should": "8.3.1",
-    "sinon": "1.17.3",
+    "mocha": "2.5.3",
+    "rewire": "2.5.2",
+    "should": "9.0.2",
+    "sinon": "1.17.4",
     "sinon-as-promised": "^4.0.0"
   },
   "engines": {
