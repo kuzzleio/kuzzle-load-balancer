@@ -31,7 +31,7 @@
     "q": "^1.4.1",
     "rc": "^1.1.6",
     "utf-8-validate": "^1.2.1",
-    "ws": "^1.1.0"
+    "ws": "^1.1.1"
   },
   "devDependencies": {
     "codecov.io": "^0.1.6",
