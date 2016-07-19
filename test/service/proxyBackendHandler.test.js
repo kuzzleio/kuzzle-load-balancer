@@ -68,14 +68,12 @@ describe('Test: service/ProxyBackendHandler', function () {
     var
       backendMode = 'standard',
       backendHandler = new ProxyBackendHandler(backendMode),
-      onCloseSpy = sandbox.spy(),
-      dummyBackend = {dummy: 'backend', onConnectionClose: onCloseSpy};
+      dummyBackend = {dummy: 'backend'};
 
     backendHandler.currentBackend = dummyBackend;
 
     backendHandler.removeBackend(dummyBackend);
 
-    should(onCloseSpy.calledOnce).be.true();
     should(backendHandler.currentBackend).be.eql(null);
   });
 
@@ -83,14 +81,12 @@ describe('Test: service/ProxyBackendHandler', function () {
     var
       backendMode = 'standard',
       backendHandler = new ProxyBackendHandler(backendMode),
-      onCloseSpy = sandbox.spy(),
-      dummyBackend = {dummy: 'backend', onConnectionClose: onCloseSpy};
+      dummyBackend = {dummy: 'backend'};
 
     backendHandler.currentBackend = dummyBackend;
 
     backendHandler.removeBackend({});
 
-    should(onCloseSpy.callCount).be.eql(0);
     should(backendHandler.currentBackend).be.eql(dummyBackend);
   });
 
