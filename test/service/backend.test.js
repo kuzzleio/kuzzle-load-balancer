@@ -19,7 +19,7 @@ describe('Test: service/Backend', function () {
     dummyAddress = 'aDummyAddress',
     spyConsoleError,
     spyConsoleLog,
-    spyNinvoke;
+    spyPromisify;
 
   before(() => {
     sandbox = sinon.sandbox.create();
@@ -28,9 +28,9 @@ describe('Test: service/Backend', function () {
   beforeEach(() => {
     spyConsoleError = sandbox.spy();
     spyConsoleLog = sandbox.spy();
-    spyNinvoke = sandbox.spy();
+    spyPromisify = sandbox.stub().returns(() => {});
     Backend.__set__('console', {log: spyConsoleLog, error: spyConsoleError});
-    Backend.__set__('q', {ninvoke: spyNinvoke});
+    Backend.__set__('Promise', {promisify: spyPromisify});
   });
 
   afterEach(() => {
@@ -423,13 +423,14 @@ describe('Test: service/Backend', function () {
 
   it('method sendRaw', () => {
     var backend = initBackend(dummyContext);
+    backend.socket = {send: () => {}};
 
     backend.sendRaw('a message');
 
-    should(spyNinvoke.calledOnce).be.true();
-    should(spyNinvoke.calledWith(backend.socket, 'send', 'a message')).be.true();
+    console.log(spyPromisify.args);
+    should(spyPromisify.calledOnce).be.true();
+    should(spyPromisify.firstCall.args[0]).be.Function();
   });
-
 
   function initBackend (context) {
     var dummySocket = new EventEmitter();
