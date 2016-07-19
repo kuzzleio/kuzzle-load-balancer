@@ -27,7 +27,7 @@ describe('Test: core/KuzzleProxy', function () {
       [aPluginName]: {activated: true, plugin: 'configuration'},
       [anotherPluginName]: {activated: false, plugin: 'configuration'}
     },
-    dummyActivatedPluginConfig = {[aPluginName]: {activated: true, dummy: 'configuration'}},
+    dummyActivatedPluginConfig,
     dummyDeactivatedPluginConfig = {[aPluginName]: {activated: false, dummy: 'configuration'}},
     dummyUndefinedActivationPluginConfig = {[aPluginName]: {dummy: 'configuration'}},
     BackendHandler,
@@ -48,6 +48,8 @@ describe('Test: core/KuzzleProxy', function () {
   beforeEach(() => {
     backendMode = 'standard';
     protocolPlugins = {};
+    dummyActivatedPluginConfig = {[aPluginName]: {activated: true, dummy: 'configuration'}};
+      
     spyConsoleError = sandbox.spy();
     KuzzleProxy.__set__('console', {log: () => {}, error: spyConsoleError});
 
@@ -198,7 +200,6 @@ describe('Test: core/KuzzleProxy', function () {
     should(readOnePluginConfigurationStub.calledTwice).be.true();
   });
 
-
   it('method readPluginsConfiguration must throw an error if loadCurrentConfig throws an error', () => {
     var
       proxy,
@@ -314,14 +315,15 @@ describe('Test: core/KuzzleProxy', function () {
     should(requirePluginConfigStub.calledOnce).be.true();
   });
 
-  it('method readOnePluginConfiguration must merge plugin default config with provided one without overwritting it', () => {
+  it('method readOnePluginConfiguration must override plugin package config with local one', () => {
     var proxy = new KuzzleProxy(BackendHandler, dummyRootFolder),
       requirePluginConfigStub = sandbox
         .stub(KuzzleProxy.prototype, 'requirePluginConfig')
         .returns({pluginInfo: {defaultConfig: {dummy: 'Another configuration'}}}),
+      expected = Object.assign({}, dummyActivatedPluginConfig[aPluginName]),
       readConfig = proxy.readOnePluginConfiguration(dummyRootFolder, dummyActivatedPluginConfig, aPluginName);
 
-    should(readConfig).be.deepEqual(dummyActivatedPluginConfig[aPluginName]);
+    should(readConfig).be.deepEqual(expected);
     should(requirePluginConfigStub.calledOnce).be.true();
   });
 
