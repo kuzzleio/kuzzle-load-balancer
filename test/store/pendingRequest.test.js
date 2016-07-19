@@ -2,7 +2,7 @@ var
   should = require('should'),
   sandbox = require('sinon').sandbox.create(),
   rewire = require('rewire'),
-  q = require('q'),
+  Promise = require('bluebird'),
   PendingRequest = rewire('../../lib/store/PendingRequest'),
   InternalError = require('kuzzle-common-objects').Errors.internalError;
 
@@ -46,17 +46,22 @@ describe('Test: store/PendingRequest', function () {
   // /!\ Biazed test, we do it first to avoid setTimeout overrides
   it('method add creates a setTimeout that rejects the promise after a certain amount of time', (done) => {
     var
-      deferred = q.defer(),
+      resolve,
+      reject,
       pendingRequest = new PendingRequest(100),
+      promise = new Promise((rs, rj) => {
+        resolve = rs;
+        reject = rj;
+      }),
       dummyPendingWithPromise = {
         message: {data: {connection: {}, request: {requestId: 'exists'}}},
         timeout: 'timeoutDummyPendingExist',
-        promise: deferred
+        promise: {resolve, reject, promise}
       };
 
     pendingRequest.add(dummyPendingWithPromise);
 
-    deferred.promise
+    return promise
       .done(function () {
         // We should never arrive here
         should(false).be.true();
