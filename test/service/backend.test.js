@@ -19,13 +19,15 @@ describe('Test: service/Backend', function () {
     dummyAddress = 'aDummyAddress',
     spyConsoleError,
     spyConsoleLog,
-    spyNinvoke;
+    spyNinvoke,
+    spySocketClose;
 
   before(() => {
     sandbox = sinon.sandbox.create();
   });
 
   beforeEach(() => {
+    spySocketClose = sandbox.spy();
     spyConsoleError = sandbox.spy();
     spyConsoleLog = sandbox.spy();
     spyNinvoke = sandbox.spy();
@@ -365,6 +367,7 @@ describe('Test: service/Backend', function () {
 
     should(spyConsoleLog.calledOnce).be.true();
     should(spyConsoleLog.calledWith(`Connection with backend ${dummyAddress} closed.`)).be.true();
+    should(spySocketClose.calledOnce).be.true();
     should(getAllStub.calledOnce).be.true();
     should(removeBackendStub.calledOnce).be.true();
     should(removeBackendStub.calledWith(backend)).be.true();
@@ -434,6 +437,7 @@ describe('Test: service/Backend', function () {
   function initBackend (context) {
     var dummySocket = new EventEmitter();
 
+    dummySocket.close = spySocketClose;
     dummySocket.upgradeReq = {connection: {remoteAddress: dummyAddress}};
 
     return new Backend(dummySocket, context, dummyTimeout);
