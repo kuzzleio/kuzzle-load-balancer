@@ -22,13 +22,13 @@
   },
   "dependencies": {
     "async": "^2.0.0-rc.5",
+    "bluebird": "^3.4.1",
     "bouncy": "^3.2.2",
     "bufferutil": "^1.2.1",
     "cli-color": "^1.1.0",
     "kuzzle-common-objects": "git+https://github.com/kuzzleio/kuzzle-common-objects.git#1.0.0",
     "lodash": "^4.12.0",
     "proper-lockfile": "^1.1.2",
-    "q": "^1.4.1",
     "rc": "^1.1.6",
     "utf-8-validate": "^1.2.1",
     "ws": "^1.1.1"

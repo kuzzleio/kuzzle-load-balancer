@@ -6,7 +6,7 @@ var
   Broker = rewire('../../lib/service/Broker'),
   EventEmitter = require('events'),
   PendingRequest = require.main.require('lib/store/PendingRequest'),
-  q = require('q');
+  Promise = require('bluebird');
 
 describe('Test: service/Broker', function () {
   var
@@ -23,10 +23,10 @@ describe('Test: service/Broker', function () {
     }),
     sendRawSpy = sandbox.spy(function () {
       if (rawError) {
-        return q.reject(dummyError);
+        return Promise.reject(dummyError);
       }
 
-      return q({});
+      return Promise.resolve({});
     }),
     backendConstructorSpy = sandbox.spy(function () {
       return {sendRaw: sendRawSpy};
@@ -123,12 +123,12 @@ describe('Test: service/Broker', function () {
     should(addEnvelopeStub.getCall(1).calledWith({}, 'anotherConnection', 'connection')).be.true();
     should(sendRawSpy.getCall(0).calledWith(JSON.stringify('aConnection'))).be.true();
     should(sendRawSpy.getCall(1).calledWith(JSON.stringify('anotherConnection'))).be.true();
-    process.nextTick(() => {
+    setTimeout(() => {
       should(handleBackendRegistrationStub.calledOnce).be.true();
       should(handleBackendRegistrationStub.getCall(0).args[1]).be.eql(null);
 
       done();
-    });
+    }, 20);
   });
 
   it('method onConnection must catch an error when it happens', (done) => {
@@ -157,11 +157,11 @@ describe('Test: service/Broker', function () {
     should(sendRawSpy.calledTwice).be.true();
     should(addEnvelopeStub.getCall(0).calledWith({}, 'aConnection', 'connection')).be.true();
     should(addEnvelopeStub.getCall(1).calledWith({}, 'anotherConnection', 'connection')).be.true();
-    process.nextTick(() => {
+    setTimeout(() => {
       should(handleBackendRegistrationStub.calledOnce).be.true();
       should(handleBackendRegistrationStub.getCall(0).args[1]).be.deepEqual(dummyError);
       done();
-    });
+    }, 20);
   });
 
   it('method handleBackendRegistration must console error when an error has occured and close the socket', () => {
@@ -183,7 +183,7 @@ describe('Test: service/Broker', function () {
     broker.handleBackendRegistration(dummyBackend, dummyError);
 
     should(spyConsoleError.calledOnce).be.true();
-    should(spyConsoleError.calledWith(`Initialization of the connection with backend ${dummyAddress} failed.`)).be.true();
+    should(spyConsoleError.calledWith(`Initialization of the connection with backend ${dummyAddress} failed; Reason: an Error`)).be.true();
     should(dummyBackend.socket.close.calledOnce).be.true();
   });
 
