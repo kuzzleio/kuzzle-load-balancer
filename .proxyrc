@@ -4,6 +4,9 @@
     // Default plugin to communicate with the proxy
     "kuzzle-plugin-socketio": {
       "npmVersion": "2.0.0"
+    },
+    "kuzzle-plugin-websocket": {
+      "gitUrl": "git://github.com/kuzzleio/kuzzle-plugin-websocket.git#channel-bugfix"
     }
   },
   // Timeout when a request is aborted and an error is returned in ms
