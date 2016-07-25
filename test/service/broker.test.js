@@ -183,7 +183,7 @@ describe('Test: service/Broker', function () {
     broker.handleBackendRegistration(dummyBackend, dummyError);
 
     should(spyConsoleError.calledOnce).be.true();
-    should(spyConsoleError.calledWith(`Initialization of the connection with backend ${dummyAddress} failed.`)).be.true();
+    should(spyConsoleError.calledWith(`Initialization of the connection with backend ${dummyAddress} failed; Reason: an Error`)).be.true();
     should(dummyBackend.socket.close.calledOnce).be.true();
   });
 
