@@ -4,6 +4,8 @@ var
   proxy,
   applicationName = 'proxy';
 
+console.log('Starting proxy instance');
+
 try {
   proxy = new KuzzleProxy(BackendHandler, applicationName);
 
