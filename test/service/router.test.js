@@ -82,7 +82,7 @@ describe('#Test: service/Router', function () {
     var
       dummyContext = {
         broker: {
-          brokerCallback: sandbox.spy((message, deferred) => deferred.resolve(message)),
+          brokerCallback: sandbox.spy((message, callback) => callback(null, message)),
           addEnvelope: sandbox.stub().returnsArg(0)
         }
       },
@@ -114,7 +114,7 @@ describe('#Test: service/Router', function () {
       dummyError = new Error('an Error'),
       dummyContext = {
         broker: {
-          brokerCallback: sandbox.spy((message, deferred) => deferred.reject(dummyError)),
+          brokerCallback: sandbox.spy((message, callback) => callback(dummyError)),
           addEnvelope: sandbox.stub().returnsArg(0)
         },
         constructors: {

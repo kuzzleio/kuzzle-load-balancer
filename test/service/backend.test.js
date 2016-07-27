@@ -4,7 +4,8 @@ var
   rewire = require('rewire'),
   Backend = rewire('../../lib/service/Backend'),
   sinon = require('sinon'),
-  PendingRequest = require.main.require('lib/store/PendingRequest');
+  PendingRequest = require.main.require('lib/store/PendingRequest'),
+  InternalError = require('kuzzle-common-objects').Errors.internalError;
 
 describe('Test: service/Backend', function () {
   var
@@ -19,7 +20,6 @@ describe('Test: service/Backend', function () {
     dummyAddress = 'aDummyAddress',
     spyConsoleError,
     spyConsoleLog,
-    spyPromisify,
     spySocketClose;
 
   before(() => {
@@ -30,9 +30,7 @@ describe('Test: service/Backend', function () {
     spySocketClose = sandbox.spy();
     spyConsoleError = sandbox.spy();
     spyConsoleLog = sandbox.spy();
-    spyPromisify = sandbox.stub().returns(() => {});
     Backend.__set__('console', {log: spyConsoleLog, error: spyConsoleError});
-    Backend.__set__('Promise', {promisify: spyPromisify});
   });
 
   afterEach(() => {
@@ -99,22 +97,22 @@ describe('Test: service/Backend', function () {
         requestExistsStub,
         requestGetStub,
         requestRemoveStub,
-        resolveSpy;
+        responseCB = sandbox.spy();
 
-      resolveSpy = sandbox.spy();
       requestRemoveStub = sandbox.stub(backend.backendRequestStore, 'removeByRequestId');
       requestExistsStub = sandbox
         .stub(backend.backendRequestStore, 'existsByRequestId')
         .returns(true);
       requestGetStub = sandbox
         .stub(backend.backendRequestStore, 'getByRequestId')
-        .returns({promise: {resolve: resolveSpy}});
+        .returns({callback: responseCB});
 
       backend.onMessage(goodResponseMessage);
 
       should(requestExistsStub.calledOnce).be.true();
       should(requestExistsStub.calledWith('aRequestId')).be.true();
-      should(resolveSpy.calledOnce).be.true();
+      should(responseCB.calledOnce).be.true();
+      should(responseCB.calledWithMatch(null, 'aResponse')).be.true();
       should(requestGetStub.calledOnce).be.true();
       should(requestGetStub.calledWith('aRequestId')).be.true();
       should(requestRemoveStub.calledOnce).be.true();
@@ -354,11 +352,11 @@ describe('Test: service/Backend', function () {
       getAllStub,
       removeBackendStub,
       removeRequestStub,
-      spyPromiseReject = sandbox.spy();
+      spyCallback = sandbox.spy();
 
     getAllStub = sandbox
       .stub(backend.backendRequestStore, 'getAll')
-      .returns({aRequestId: {promise: {reject: spyPromiseReject}}, anotherRequestId: {promise: {reject: spyPromiseReject}}});
+      .returns({aRequestId: {callback: spyCallback}, anotherRequestId: {callback: spyCallback}});
 
     removeBackendStub = sandbox.stub(backend.context.backendHandler, 'removeBackend');
     removeRequestStub = sandbox.stub(backend.backendRequestStore, 'removeByRequestId');
@@ -371,7 +369,8 @@ describe('Test: service/Backend', function () {
     should(getAllStub.calledOnce).be.true();
     should(removeBackendStub.calledOnce).be.true();
     should(removeBackendStub.calledWith(backend)).be.true();
-    should(spyPromiseReject.calledTwice).be.true();
+    should(spyCallback.calledTwice).be.true();
+    should(spyCallback.alwaysCalledWithMatch(sinon.match.instanceOf(InternalError))).be.true();
     should(removeRequestStub.calledTwice).be.true();
     should(removeRequestStub.calledWith('aRequestId')).be.true();
     should(removeRequestStub.calledWith('anotherRequestId')).be.true();
@@ -383,12 +382,12 @@ describe('Test: service/Backend', function () {
       getAllStub,
       removeBackendStub,
       removeRequestStub,
-      spyPromiseReject = sandbox.spy(),
+      spyCallback = sandbox.spy(),
       error = new Error('an Error');
 
     getAllStub = sandbox
       .stub(backend.backendRequestStore, 'getAll')
-      .returns({aRequestId: {promise: {reject: spyPromiseReject}}, anotherRequestId: {promise: {reject: spyPromiseReject}}});
+      .returns({aRequestId: {callback: spyCallback}, anotherRequestId: {callback: spyCallback}});
 
     removeBackendStub = sandbox.stub(backend.context.backendHandler, 'removeBackend');
     removeRequestStub = sandbox.stub(backend.backendRequestStore, 'removeByRequestId');
@@ -400,7 +399,8 @@ describe('Test: service/Backend', function () {
     should(getAllStub.calledOnce).be.true();
     should(removeBackendStub.calledOnce).be.true();
     should(removeBackendStub.calledWith(backend)).be.true();
-    should(spyPromiseReject.calledTwice).be.true();
+    should(spyCallback.calledTwice).be.true();
+    should(spyCallback.alwaysCalledWithMatch(sinon.match.instanceOf(InternalError))).be.true();
     should(removeRequestStub.calledTwice).be.true();
     should(removeRequestStub.calledWith('aRequestId')).be.true();
     should(removeRequestStub.calledWith('anotherRequestId')).be.true();
@@ -424,17 +424,6 @@ describe('Test: service/Backend', function () {
     should(backend.socket.send.calledWith(JSON.stringify(pendingItem.message))).be.true();
   });
 
-  it('method sendRaw', () => {
-    var backend = initBackend(dummyContext);
-    backend.socket = {send: () => {}};
-
-    backend.sendRaw('a message');
-
-    console.log(spyPromisify.args);
-    should(spyPromisify.calledOnce).be.true();
-    should(spyPromisify.firstCall.args[0]).be.Function();
-  });
-
   function initBackend (context) {
     var dummySocket = new EventEmitter();
 
@@ -443,4 +432,18 @@ describe('Test: service/Backend', function () {
 
     return new Backend(dummySocket, context, dummyTimeout);
   }
+
+  it('method sendRaw', () => {
+    var
+      backend = initBackend(dummyContext),
+      cb = () => {},
+      message = 'foobar';
+
+      backend.socket.send = sandbox.spy();
+
+      backend.sendRaw(message, cb);
+
+      should(backend.socket.send.calledOnce).be.true();
+      should(backend.socket.send.calledWith(message, cb));
+  });
 });
