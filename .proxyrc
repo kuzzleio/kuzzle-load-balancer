@@ -3,10 +3,10 @@
   "protocolPlugins": {
     // Default plugin to communicate with the proxy
     "kuzzle-plugin-socketio": {
-      "npmVersion": "2.0.0"
+      "npmVersion": "2.0.1"
     },
     "kuzzle-plugin-websocket": {
-      "gitUrl": "git://github.com/kuzzleio/kuzzle-plugin-websocket.git#channel-bugfix"
+      "npmVersion": "1.0.3"
     }
   },
   // Timeout when a request is aborted and an error is returned in ms
