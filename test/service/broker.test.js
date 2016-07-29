@@ -21,12 +21,12 @@ describe('Test: service/Broker', function () {
       serverSocket = new EventEmitter();
       return serverSocket;
     }),
-    sendRawSpy = sandbox.spy(function () {
+    sendRawSpy = sandbox.spy(function (dummy, callback) {
       if (rawError) {
-        return Promise.reject(dummyError);
+        return callback(dummyError);
       }
 
-      return Promise.resolve({});
+      callback(null, {});
     }),
     backendConstructorSpy = sandbox.spy(function () {
       return {sendRaw: sendRawSpy};
@@ -154,9 +154,8 @@ describe('Test: service/Broker', function () {
     should(backendConstructorSpy.calledOnce).be.true();
     should(backendConstructorSpy.calledWith(dummySocket, dummyContext, dummyTimeout)).be.true();
     should(getAllSpy.calledOnce).be.true();
-    should(sendRawSpy.calledTwice).be.true();
+    should(sendRawSpy.calledOnce).be.true();
     should(addEnvelopeStub.getCall(0).calledWith({}, 'aConnection', 'connection')).be.true();
-    should(addEnvelopeStub.getCall(1).calledWith({}, 'anotherConnection', 'connection')).be.true();
     setTimeout(() => {
       should(handleBackendRegistrationStub.calledOnce).be.true();
       should(handleBackendRegistrationStub.getCall(0).args[1]).be.deepEqual(dummyError);
@@ -258,8 +257,8 @@ describe('Test: service/Broker', function () {
 
     broker.brokerRequestStore = {
       getAll: sandbox.stub().returns({
-        aRequestId: {message: 'a message', promise: 'a promise'},
-        anotherRequestId: {message: 'another message', promise: 'another promise'}
+        aRequestId: {message: 'a message', callback: 'a callback'},
+        anotherRequestId: {message: 'another message', callback: 'another callback'}
       }),
       clear: sandbox.spy()
     };
@@ -271,61 +270,61 @@ describe('Test: service/Broker', function () {
     should(broker.brokerRequestStore.getAll.calledOnce).be.true();
     should(broker.brokerRequestStore.clear.calledOnce).be.true();
     should(brokerCallbackStub.calledTwice).be.true();
-    should(brokerCallbackStub.getCall(0).calledWith('a message', 'a promise')).be.true();
-    should(brokerCallbackStub.getCall(1).calledWith('another message', 'another promise')).be.true();
+    should(brokerCallbackStub.getCall(0).calledWith('a message', 'a callback')).be.true();
+    should(brokerCallbackStub.getCall(1).calledWith('another message', 'another callback')).be.true();
   });
 
-  it('method brokerCallback rejects the promise if a message has a bad format', () => {
+  it('method brokerCallback rejects the callback if a message has a bad format', () => {
     var
       broker = new Broker(),
-      dummyPromise = {reject: sandbox.spy()},
+      dummyCallback = sandbox.spy(),
       dummyMessage = {data: {not: 'a proper message'}},
       dummyContext = {backendHandler: {getBackend : sandbox.spy()}};
 
     broker.context = dummyContext;
-    broker.brokerCallback(dummyMessage, dummyPromise);
-    
+    broker.brokerCallback(dummyMessage, dummyCallback);
+
     should(dummyContext.backendHandler.getBackend.calledOnce).be.true();
-    should(dummyPromise.reject.calledOnce).be.true();
-    should(dummyPromise.reject.calledWith(new Error(`Bad format : ${dummyMessage}`))).be.true();
+    should(dummyCallback.calledOnce).be.true();
+    should(dummyCallback.calledWith(new Error(`Bad format : ${dummyMessage}`))).be.true();
   });
 
-  it('method brokerCallback rejects the promise if a message has a bad structure', () => {
+  it('method brokerCallback rejects the callback if a message has a bad structure', () => {
     var
       broker = new Broker(),
-      dummyPromise = {reject: sandbox.spy()},
+      dummyCallback = sandbox.spy(),
       dummyMessage = {room: 'request', data: {request: {not: 'a proper message'}}},
       dummyContext = {backendHandler: {getBackend : sandbox.spy()}};
 
     broker.context = dummyContext;
-    broker.brokerCallback(dummyMessage, dummyPromise);
+    broker.brokerCallback(dummyMessage, dummyCallback);
 
     should(dummyContext.backendHandler.getBackend.calledOnce).be.true();
-    should(dummyPromise.reject.calledOnce).be.true();
-    should(dummyPromise.reject.calledWith(new Error(`Bad message : ${dummyMessage}`))).be.true();
+    should(dummyCallback.calledOnce).be.true();
+    should(dummyCallback.calledWith(new Error(`Bad message : ${dummyMessage}`))).be.true();
   });
 
   it('method brokerCallback adds a request to the store if no backend', () => {
     var
       broker = new Broker(),
-      dummyPromise = {reject: sandbox.spy()},
+      dummyCallback = sandbox.spy(),
       dummyMessage = {room: 'request', data: {request: {requestId: 'a proper message'}}},
       dummyContext = {backendHandler: {getBackend: sandbox.stub().returns(null)}};
 
     broker.brokerRequestStore = {add: sandbox.stub()};
 
     broker.context = dummyContext;
-    broker.brokerCallback(dummyMessage, dummyPromise);
+    broker.brokerCallback(dummyMessage, dummyCallback);
 
     should(dummyContext.backendHandler.getBackend.calledOnce).be.true();
     should(broker.brokerRequestStore.add.calledOnce).be.true();
-    should(broker.brokerRequestStore.add.calledWith({message: dummyMessage, promise: dummyPromise})).be.true();
+    should(broker.brokerRequestStore.add.calledWith({message: dummyMessage, callback: dummyCallback})).be.true();
   });
 
   it('method brokerCallback adds a request to the store if no backend', () => {
     var
       broker = new Broker(),
-      dummyPromise = {reject: sandbox.spy()},
+      dummyCallback = sandbox.spy(),
       dummyMessage = {room: 'request', data: {request: {requestId: 'a proper message'}}},
       backendSendSpy = sandbox.spy(),
       dummyContext = {backendHandler: {getBackend : sandbox.stub().returns({send: backendSendSpy})}};
@@ -333,12 +332,11 @@ describe('Test: service/Broker', function () {
     broker.brokerRequestStore = {remove: sandbox.stub()};
 
     broker.context = dummyContext;
-    broker.brokerCallback(dummyMessage, dummyPromise);
+    broker.brokerCallback(dummyMessage, dummyCallback);
 
     should(dummyContext.backendHandler.getBackend.calledOnce).be.true();
-    should(broker.brokerRequestStore.remove.calledOnce).be.true();
     should(backendSendSpy.calledOnce).be.true();
-    should(backendSendSpy.calledWith({message: dummyMessage, promise: dummyPromise})).be.true();
+    should(backendSendSpy.calledWith({message: dummyMessage, callback: dummyCallback})).be.true();
   });
 
   it('method addClientConnection adds the client to the store and broadcasts the intel to all backends', () => {
