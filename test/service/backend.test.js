@@ -191,6 +191,36 @@ describe('Test: service/Backend', function () {
       should(pluginGetStub.callCount).be.eql(0);
     });
 
+    it('message room "joinChannel" should recover from a plugin crash', () => {
+      var
+        backend = initBackend(dummyContext),
+        join = {room: 'joinChannel', data: {id: 'anId', some: 'data'}},
+        joinMessage = JSON.stringify(join),
+        connectionGetStub,
+        pluginGetStub,
+        joinChannelStub;
+
+      connectionGetStub = sandbox
+        .stub(backend.context.clientConnectionStore, 'getByConnectionId')
+        .returns({type: 'aType'});
+
+      joinChannelStub = sandbox.stub();
+      joinChannelStub.throws(new Error('OH NOES!!1!'));
+
+      pluginGetStub = sandbox
+        .stub(backend.context.pluginStore, 'getByProtocol')
+        .returns({joinChannel: joinChannelStub});
+
+      should.doesNotThrow(() => { backend.onMessage(joinMessage); });
+
+      should(connectionGetStub.calledOnce).be.true();
+      should(connectionGetStub.calledWith('anId')).be.true();
+      should(pluginGetStub.calledOnce).be.true();
+      should(pluginGetStub.calledWith('aType')).be.true();
+      should(joinChannelStub.calledOnce).be.true();
+      should(joinChannelStub.calledWith(join.data)).be.true();
+    });
+
     it('message room "leaveChannel" must call leaveChannel if everything is ok', () => {
       var
         backend = initBackend(dummyContext),
@@ -238,6 +268,36 @@ describe('Test: service/Backend', function () {
       should(connectionGetStub.calledOnce).be.true();
       should(connectionGetStub.calledWith('anId')).be.true();
       should(pluginGetStub.callCount).be.eql(0);
+    });
+
+    it('message room "leaveChannel" should recover from a plugin crash', () => {
+      var
+        backend = initBackend(dummyContext),
+        leave = {room: 'leaveChannel', data: {id: 'anId', some: 'data'}},
+        leaveMessage = JSON.stringify(leave),
+        connectionGetStub,
+        pluginGetStub,
+        leaveChannelStub;
+
+      connectionGetStub = sandbox
+        .stub(backend.context.clientConnectionStore, 'getByConnectionId')
+        .returns({type: 'aType'});
+
+      leaveChannelStub = sandbox.stub();
+      leaveChannelStub.throws(new Error('OH NOES!!1!'));
+
+      pluginGetStub = sandbox
+        .stub(backend.context.pluginStore, 'getByProtocol')
+        .returns({leaveChannel: leaveChannelStub});
+
+      should.doesNotThrow(() => { backend.onMessage(leaveMessage); });
+
+      should(connectionGetStub.calledOnce).be.true();
+      should(connectionGetStub.calledWith('anId')).be.true();
+      should(pluginGetStub.calledOnce).be.true();
+      should(pluginGetStub.calledWith('aType')).be.true();
+      should(leaveChannelStub.calledOnce).be.true();
+      should(leaveChannelStub.calledWith(leave.data)).be.true();
     });
 
     it('message room "notify" must call notify if everything is ok', () => {
@@ -289,7 +349,37 @@ describe('Test: service/Backend', function () {
       should(pluginGetStub.callCount).be.eql(0);
     });
 
-    it('message room broadcast must broadcast message to all plugins', () => {
+    it('message room "notify" must recover from a plugin crash', () => {
+      var
+        backend = initBackend(dummyContext),
+        notify = {room: 'notify', data: {id: 'anId', some: 'data'}},
+        notifyMessage = JSON.stringify(notify),
+        connectionGetStub,
+        pluginGetStub,
+        notifyStub;
+
+      connectionGetStub = sandbox
+        .stub(backend.context.clientConnectionStore, 'getByConnectionId')
+        .returns({type: 'aType'});
+
+      notifyStub = sandbox.stub();
+      notifyStub.throws(new Error('OH NOES!!1!'));
+
+      pluginGetStub = sandbox
+        .stub(backend.context.pluginStore, 'getByProtocol')
+        .returns({notify: notifyStub});
+
+      should.doesNotThrow(() => { backend.onMessage(notifyMessage); });
+
+      should(connectionGetStub.calledOnce).be.true();
+      should(connectionGetStub.calledWith('anId')).be.true();
+      should(pluginGetStub.calledOnce).be.true();
+      should(pluginGetStub.calledWith('aType')).be.true();
+      should(notifyStub.calledOnce).be.true();
+      should(notifyStub.calledWith(notify.data)).be.true();
+    });
+
+    it('message room "broadcast" must broadcast message to all plugins', () => {
       var
         spyPluginBroadcast = sandbox.spy(),
         pluginContext = {pluginStore: {plugins: {aPlugin: {broadcast: spyPluginBroadcast}}}},
@@ -301,6 +391,22 @@ describe('Test: service/Backend', function () {
 
       should(spyPluginBroadcast.calledOnce).be.true();
       should(spyPluginBroadcast.calledWith(broadcast.data)).be.true();
+    });
+
+    it('message room "broadcast" must recover from a plugin crash', () => {
+      var
+        stubPluginBroadcast = sandbox.stub(),
+        pluginContext = {pluginStore: {plugins: {aPlugin: {broadcast: stubPluginBroadcast}}}},
+        backend = initBackend(pluginContext),
+        broadcast = {room: 'broadcast', data: {some: 'data'}},
+        broadcastMessage = JSON.stringify(broadcast);
+
+      stubPluginBroadcast.throws(new Error('OH NOES!!1!'));
+
+      should.doesNotThrow(() => {backend.onMessage(broadcastMessage); });
+
+      should(stubPluginBroadcast.calledOnce).be.true();
+      should(stubPluginBroadcast.calledWith(broadcast.data)).be.true();
     });
 
     it('message room httpPortInitialization must set the httpPort', () => {
