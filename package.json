@@ -1,6 +1,6 @@
 {
   "name": "kuzzle-proxy",
-  "version": "1.0.0-RC4",
+  "version": "1.0.0-RC5",
   "description": "Kuzzle proxy multiplexer",
   "main": "lib/index.js",
   "scripts": {
@@ -21,31 +21,31 @@
     "url": "https://github.com/kuzzleio/kuzzle-proxy.git"
   },
   "dependencies": {
-    "async": "^2.0.0-rc.5",
+    "async": "^2.0.1",
+    "bluebird": "^3.4.1",
     "bouncy": "^3.2.2",
     "bufferutil": "^1.2.1",
     "cli-color": "^1.1.0",
-    "kuzzle-common-objects": "git+https://github.com/kuzzleio/kuzzle-common-objects.git#1.0.0",
-    "lodash": "^4.12.0",
+    "kuzzle-common-objects": "1.0.2",
+    "lodash": "^4.14.1",
     "proper-lockfile": "^1.1.2",
-    "q": "^1.4.1",
     "rc": "^1.1.6",
     "utf-8-validate": "^1.2.1",
     "ws": "^1.1.1"
   },
   "devDependencies": {
     "codecov.io": "^0.1.6",
-    "eslint": "3.0.1",
+    "eslint": "3.2.2",
     "grunt": "^1.0.1",
     "grunt-contrib-jshint": "^1.0.0",
-    "gruntify-eslint": "^2.0.0",
+    "gruntify-eslint": "^3.0.0",
     "istanbul": "0.4.4",
     "istanbul-middleware": "0.2.2",
-    "mocha": "2.5.3",
+    "mocha": "3.0.1",
     "rewire": "2.5.2",
-    "should": "9.0.2",
-    "sinon": "1.17.4",
-    "sinon-as-promised": "^4.0.0"
+    "should": "10.0.0",
+    "sinon": "1.17.5",
+    "sinon-as-promised": "^4.0.2"
   },
   "engines": {
     "node": ">= 4.3.1",

@@ -2,7 +2,6 @@ var
   should = require('should'),
   sandbox = require('sinon').sandbox.create(),
   rewire = require('rewire'),
-  q = require('q'),
   PendingRequest = rewire('../../lib/store/PendingRequest'),
   InternalError = require('kuzzle-common-objects').Errors.internalError;
 
@@ -13,17 +12,17 @@ describe('Test: store/PendingRequest', function () {
     dummyPendingExist = {
       message: {data: {connection: {}, request: {requestId: 'exists'}}},
       timeout: 'timeoutDummyPendingExist',
-      promise: {}
+      callback: null
     },
     dummyPendingDoesNotExist = {
       message: {data: {connection: {}, request: {requestId: 'doesnotexist'}}},
       timeout: 'timeoutDummyPendingDoesNotExist',
-      promise: {}
+      callback: null
     },
     dummyInvalidPending = {
       message: {data: {connection: {}, notARequest: {notARequestId: 'invalid'}}},
       timeout: 'timeoutDummyInvalidPending',
-      promise: {}
+      callback: null
     };
 
   beforeEach(() => {
@@ -44,27 +43,23 @@ describe('Test: store/PendingRequest', function () {
   });
 
   // /!\ Biazed test, we do it first to avoid setTimeout overrides
-  it('method add creates a setTimeout that rejects the promise after a certain amount of time', (done) => {
+  it('method add creates a setTimeout that rejects the callback after a certain amount of time', (done) => {
     var
-      deferred = q.defer(),
       pendingRequest = new PendingRequest(100),
-      dummyPendingWithPromise = {
+      dummyPendingWithCallback = {
         message: {data: {connection: {}, request: {requestId: 'exists'}}},
         timeout: 'timeoutDummyPendingExist',
-        promise: deferred
+        callback: function (error, result) {
+          if (error) {
+            should(error).be.instanceOf(InternalError);
+            return done();
+          }
+
+          done(new Error('Promise unexpectedly resolved'));
+        }
       };
 
-    pendingRequest.add(dummyPendingWithPromise);
-
-    deferred.promise
-      .done(function () {
-        // We should never arrive here
-        should(false).be.true();
-        done();
-      }, function (error) {
-        should(error).be.instanceOf(InternalError);
-        done();
-      });
+    pendingRequest.add(dummyPendingWithCallback);
   });
 
   it('method add must add an item to the pending', () => {

@@ -4,7 +4,8 @@ var
   rewire = require('rewire'),
   Backend = rewire('../../lib/service/Backend'),
   sinon = require('sinon'),
-  PendingRequest = require.main.require('lib/store/PendingRequest');
+  PendingRequest = require.main.require('lib/store/PendingRequest'),
+  InternalError = require('kuzzle-common-objects').Errors.internalError;
 
 describe('Test: service/Backend', function () {
   var
@@ -19,7 +20,6 @@ describe('Test: service/Backend', function () {
     dummyAddress = 'aDummyAddress',
     spyConsoleError,
     spyConsoleLog,
-    spyNinvoke,
     spySocketClose;
 
   before(() => {
@@ -30,9 +30,7 @@ describe('Test: service/Backend', function () {
     spySocketClose = sandbox.spy();
     spyConsoleError = sandbox.spy();
     spyConsoleLog = sandbox.spy();
-    spyNinvoke = sandbox.spy();
     Backend.__set__('console', {log: spyConsoleLog, error: spyConsoleError});
-    Backend.__set__('q', {ninvoke: spyNinvoke});
   });
 
   afterEach(() => {
@@ -99,22 +97,22 @@ describe('Test: service/Backend', function () {
         requestExistsStub,
         requestGetStub,
         requestRemoveStub,
-        resolveSpy;
+        responseCB = sandbox.spy();
 
-      resolveSpy = sandbox.spy();
       requestRemoveStub = sandbox.stub(backend.backendRequestStore, 'removeByRequestId');
       requestExistsStub = sandbox
         .stub(backend.backendRequestStore, 'existsByRequestId')
         .returns(true);
       requestGetStub = sandbox
         .stub(backend.backendRequestStore, 'getByRequestId')
-        .returns({promise: {resolve: resolveSpy}});
+        .returns({callback: responseCB});
 
       backend.onMessage(goodResponseMessage);
 
       should(requestExistsStub.calledOnce).be.true();
       should(requestExistsStub.calledWith('aRequestId')).be.true();
-      should(resolveSpy.calledOnce).be.true();
+      should(responseCB.calledOnce).be.true();
+      should(responseCB.calledWithMatch(null, 'aResponse')).be.true();
       should(requestGetStub.calledOnce).be.true();
       should(requestGetStub.calledWith('aRequestId')).be.true();
       should(requestRemoveStub.calledOnce).be.true();
@@ -193,6 +191,36 @@ describe('Test: service/Backend', function () {
       should(pluginGetStub.callCount).be.eql(0);
     });
 
+    it('message room "joinChannel" should recover from a plugin crash', () => {
+      var
+        backend = initBackend(dummyContext),
+        join = {room: 'joinChannel', data: {id: 'anId', some: 'data'}},
+        joinMessage = JSON.stringify(join),
+        connectionGetStub,
+        pluginGetStub,
+        joinChannelStub;
+
+      connectionGetStub = sandbox
+        .stub(backend.context.clientConnectionStore, 'getByConnectionId')
+        .returns({type: 'aType'});
+
+      joinChannelStub = sandbox.stub();
+      joinChannelStub.throws(new Error('OH NOES!!1!'));
+
+      pluginGetStub = sandbox
+        .stub(backend.context.pluginStore, 'getByProtocol')
+        .returns({joinChannel: joinChannelStub});
+
+      should.doesNotThrow(() => { backend.onMessage(joinMessage); });
+
+      should(connectionGetStub.calledOnce).be.true();
+      should(connectionGetStub.calledWith('anId')).be.true();
+      should(pluginGetStub.calledOnce).be.true();
+      should(pluginGetStub.calledWith('aType')).be.true();
+      should(joinChannelStub.calledOnce).be.true();
+      should(joinChannelStub.calledWith(join.data)).be.true();
+    });
+
     it('message room "leaveChannel" must call leaveChannel if everything is ok', () => {
       var
         backend = initBackend(dummyContext),
@@ -240,6 +268,36 @@ describe('Test: service/Backend', function () {
       should(connectionGetStub.calledOnce).be.true();
       should(connectionGetStub.calledWith('anId')).be.true();
       should(pluginGetStub.callCount).be.eql(0);
+    });
+
+    it('message room "leaveChannel" should recover from a plugin crash', () => {
+      var
+        backend = initBackend(dummyContext),
+        leave = {room: 'leaveChannel', data: {id: 'anId', some: 'data'}},
+        leaveMessage = JSON.stringify(leave),
+        connectionGetStub,
+        pluginGetStub,
+        leaveChannelStub;
+
+      connectionGetStub = sandbox
+        .stub(backend.context.clientConnectionStore, 'getByConnectionId')
+        .returns({type: 'aType'});
+
+      leaveChannelStub = sandbox.stub();
+      leaveChannelStub.throws(new Error('OH NOES!!1!'));
+
+      pluginGetStub = sandbox
+        .stub(backend.context.pluginStore, 'getByProtocol')
+        .returns({leaveChannel: leaveChannelStub});
+
+      should.doesNotThrow(() => { backend.onMessage(leaveMessage); });
+
+      should(connectionGetStub.calledOnce).be.true();
+      should(connectionGetStub.calledWith('anId')).be.true();
+      should(pluginGetStub.calledOnce).be.true();
+      should(pluginGetStub.calledWith('aType')).be.true();
+      should(leaveChannelStub.calledOnce).be.true();
+      should(leaveChannelStub.calledWith(leave.data)).be.true();
     });
 
     it('message room "notify" must call notify if everything is ok', () => {
@@ -291,7 +349,37 @@ describe('Test: service/Backend', function () {
       should(pluginGetStub.callCount).be.eql(0);
     });
 
-    it('message room broadcast must broadcast message to all plugins', () => {
+    it('message room "notify" must recover from a plugin crash', () => {
+      var
+        backend = initBackend(dummyContext),
+        notify = {room: 'notify', data: {id: 'anId', some: 'data'}},
+        notifyMessage = JSON.stringify(notify),
+        connectionGetStub,
+        pluginGetStub,
+        notifyStub;
+
+      connectionGetStub = sandbox
+        .stub(backend.context.clientConnectionStore, 'getByConnectionId')
+        .returns({type: 'aType'});
+
+      notifyStub = sandbox.stub();
+      notifyStub.throws(new Error('OH NOES!!1!'));
+
+      pluginGetStub = sandbox
+        .stub(backend.context.pluginStore, 'getByProtocol')
+        .returns({notify: notifyStub});
+
+      should.doesNotThrow(() => { backend.onMessage(notifyMessage); });
+
+      should(connectionGetStub.calledOnce).be.true();
+      should(connectionGetStub.calledWith('anId')).be.true();
+      should(pluginGetStub.calledOnce).be.true();
+      should(pluginGetStub.calledWith('aType')).be.true();
+      should(notifyStub.calledOnce).be.true();
+      should(notifyStub.calledWith(notify.data)).be.true();
+    });
+
+    it('message room "broadcast" must broadcast message to all plugins', () => {
       var
         spyPluginBroadcast = sandbox.spy(),
         pluginContext = {pluginStore: {plugins: {aPlugin: {broadcast: spyPluginBroadcast}}}},
@@ -303,6 +391,22 @@ describe('Test: service/Backend', function () {
 
       should(spyPluginBroadcast.calledOnce).be.true();
       should(spyPluginBroadcast.calledWith(broadcast.data)).be.true();
+    });
+
+    it('message room "broadcast" must recover from a plugin crash', () => {
+      var
+        stubPluginBroadcast = sandbox.stub(),
+        pluginContext = {pluginStore: {plugins: {aPlugin: {broadcast: stubPluginBroadcast}}}},
+        backend = initBackend(pluginContext),
+        broadcast = {room: 'broadcast', data: {some: 'data'}},
+        broadcastMessage = JSON.stringify(broadcast);
+
+      stubPluginBroadcast.throws(new Error('OH NOES!!1!'));
+
+      should.doesNotThrow(() => {backend.onMessage(broadcastMessage); });
+
+      should(stubPluginBroadcast.calledOnce).be.true();
+      should(stubPluginBroadcast.calledWith(broadcast.data)).be.true();
     });
 
     it('message room httpPortInitialization must set the httpPort', () => {
@@ -354,11 +458,11 @@ describe('Test: service/Backend', function () {
       getAllStub,
       removeBackendStub,
       removeRequestStub,
-      spyPromiseReject = sandbox.spy();
+      spyCallback = sandbox.spy();
 
     getAllStub = sandbox
       .stub(backend.backendRequestStore, 'getAll')
-      .returns({aRequestId: {promise: {reject: spyPromiseReject}}, anotherRequestId: {promise: {reject: spyPromiseReject}}});
+      .returns({aRequestId: {callback: spyCallback}, anotherRequestId: {callback: spyCallback}});
 
     removeBackendStub = sandbox.stub(backend.context.backendHandler, 'removeBackend');
     removeRequestStub = sandbox.stub(backend.backendRequestStore, 'removeByRequestId');
@@ -371,7 +475,8 @@ describe('Test: service/Backend', function () {
     should(getAllStub.calledOnce).be.true();
     should(removeBackendStub.calledOnce).be.true();
     should(removeBackendStub.calledWith(backend)).be.true();
-    should(spyPromiseReject.calledTwice).be.true();
+    should(spyCallback.calledTwice).be.true();
+    should(spyCallback.alwaysCalledWithMatch(sinon.match.instanceOf(InternalError))).be.true();
     should(removeRequestStub.calledTwice).be.true();
     should(removeRequestStub.calledWith('aRequestId')).be.true();
     should(removeRequestStub.calledWith('anotherRequestId')).be.true();
@@ -383,12 +488,12 @@ describe('Test: service/Backend', function () {
       getAllStub,
       removeBackendStub,
       removeRequestStub,
-      spyPromiseReject = sandbox.spy(),
+      spyCallback = sandbox.spy(),
       error = new Error('an Error');
 
     getAllStub = sandbox
       .stub(backend.backendRequestStore, 'getAll')
-      .returns({aRequestId: {promise: {reject: spyPromiseReject}}, anotherRequestId: {promise: {reject: spyPromiseReject}}});
+      .returns({aRequestId: {callback: spyCallback}, anotherRequestId: {callback: spyCallback}});
 
     removeBackendStub = sandbox.stub(backend.context.backendHandler, 'removeBackend');
     removeRequestStub = sandbox.stub(backend.backendRequestStore, 'removeByRequestId');
@@ -400,7 +505,8 @@ describe('Test: service/Backend', function () {
     should(getAllStub.calledOnce).be.true();
     should(removeBackendStub.calledOnce).be.true();
     should(removeBackendStub.calledWith(backend)).be.true();
-    should(spyPromiseReject.calledTwice).be.true();
+    should(spyCallback.calledTwice).be.true();
+    should(spyCallback.alwaysCalledWithMatch(sinon.match.instanceOf(InternalError))).be.true();
     should(removeRequestStub.calledTwice).be.true();
     should(removeRequestStub.calledWith('aRequestId')).be.true();
     should(removeRequestStub.calledWith('anotherRequestId')).be.true();
@@ -424,16 +530,6 @@ describe('Test: service/Backend', function () {
     should(backend.socket.send.calledWith(JSON.stringify(pendingItem.message))).be.true();
   });
 
-  it('method sendRaw', () => {
-    var backend = initBackend(dummyContext);
-
-    backend.sendRaw('a message');
-
-    should(spyNinvoke.calledOnce).be.true();
-    should(spyNinvoke.calledWith(backend.socket, 'send', 'a message')).be.true();
-  });
-
-
   function initBackend (context) {
     var dummySocket = new EventEmitter();
 
@@ -442,4 +538,18 @@ describe('Test: service/Backend', function () {
 
     return new Backend(dummySocket, context, dummyTimeout);
   }
+
+  it('method sendRaw', () => {
+    var
+      backend = initBackend(dummyContext),
+      cb = () => {},
+      message = 'foobar';
+
+      backend.socket.send = sandbox.spy();
+
+      backend.sendRaw(message, cb);
+
+      should(backend.socket.send.calledOnce).be.true();
+      should(backend.socket.send.calledWith(message, cb));
+  });
 });
