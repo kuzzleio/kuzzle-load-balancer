@@ -23,6 +23,7 @@ describe('Test: service/ProxyBackendHandler', function () {
       badBackendMode = 'not standard';
 
     (function() {
+      // eslint-disable-next-line no-new
       new ProxyBackendHandler(badBackendMode);
     }).should.throw(new Error(`Backend mode option must be set to "standard"; "${badBackendMode}" given`));
   });

@@ -52,7 +52,11 @@ describe('Test: service/HttpProxy', function () {
       httpProxy = new HttpProxy(),
       dummyHttpPort = 1234,
       getBackendStub = sandbox.stub().returns(false),
-      dummyContext = {backendHandler: {getBackend: getBackendStub}};
+      dummyContext = {backendHandler: {getBackend: getBackendStub}},
+      fakeResponse = {
+        writeHead: sinon.stub(),
+        end: sinon.stub()
+      };
 
     bouncySpy.reset();
     listenerSpy.reset();
@@ -66,7 +70,9 @@ describe('Test: service/HttpProxy', function () {
     should(listenerSpy.calledOnce).be.true();
     should(listenerSpy.calledWith(dummyHttpPort)).be.true();
 
-    should(bouncyCallback({}, {}, bounceSpy)).be.false();
+    should(bouncyCallback({}, fakeResponse, bounceSpy)).be.false();
+    should(fakeResponse.writeHead.calledWith(503, {'Content-Type': 'application/json'})).be.true();
+    should(fakeResponse.end.calledOnce).be.true();
 
     should(getBackendStub.calledOnce).be.true();
     should(bounceSpy.callCount).be.eql(0);

@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node index.js",
     "plugins": "node ./plugins.js",
-    "test": "grunt && npm run unit-testing --coverage",
+    "lint": "eslint --max-warnings=0 ./lib ./test",
+    "test": "npm run --silent lint && npm run unit-testing --coverage",
     "unit-testing": "istanbul test _mocha",
     "codecov": "cat ./coverage/lcov.info | ./node_modules/.bin/codecov"
   },
@@ -36,9 +37,6 @@
   "devDependencies": {
     "codecov.io": "^0.1.6",
     "eslint": "3.2.2",
-    "grunt": "^1.0.1",
-    "grunt-contrib-jshint": "^1.0.0",
-    "gruntify-eslint": "^3.0.0",
     "istanbul": "0.4.4",
     "istanbul-middleware": "0.2.2",
     "mocha": "3.0.1",

@@ -5,8 +5,7 @@ var
   rewire = require('rewire'),
   Broker = rewire('../../lib/service/Broker'),
   EventEmitter = require('events'),
-  PendingRequest = require.main.require('lib/store/PendingRequest'),
-  Promise = require('bluebird');
+  ServiceUnavailableError = require('kuzzle-common-objects').Errors.serviceUnavailableError;
 
 describe('Test: service/Broker', function () {
   var
@@ -17,7 +16,7 @@ describe('Test: service/Broker', function () {
     dummyAddress = 'an Address',
     rawError,
     dummyError = new Error('an Error'),
-    webSocketConstructorSpy = sandbox.spy(function (port) {
+    webSocketConstructorSpy = sandbox.spy(function () {
       serverSocket = new EventEmitter();
       return serverSocket;
     }),
@@ -28,7 +27,7 @@ describe('Test: service/Broker', function () {
 
       callback(null, {});
     }),
-    backendConstructorSpy = sandbox.spy(function () {
+    BackendConstructorSpy = sandbox.spy(function () {
       return {sendRaw: sendRawSpy};
     }),
     processMock = {
@@ -37,7 +36,7 @@ describe('Test: service/Broker', function () {
 
   before(() => {
     Broker.__set__('WebSocketServer', webSocketConstructorSpy);
-    Broker.__set__('Backend', backendConstructorSpy);
+    Broker.__set__('Backend', BackendConstructorSpy);
     Broker.__set__('process', processMock);
   });
 
@@ -56,7 +55,6 @@ describe('Test: service/Broker', function () {
     var broker = new Broker();
 
     should(broker.context).be.eql(null);
-    should(broker.brokerRequestStore).be.eql(null);
     should(broker.socketOptions).be.eql(null);
     should(broker.backendHandler).be.eql(null);
   });
@@ -75,7 +73,6 @@ describe('Test: service/Broker', function () {
     should(broker.context).be.eql(dummyContext);
     should(broker.socketOptions).be.eql(dummySocketOption);
     should(broker.backendTimeout).be.eql(dummyBackendTimeout);
-    should(broker.brokerRequestStore).be.instanceOf(PendingRequest);
   });
 
   it('method initiateServer plugs good listeners to events', () => {
@@ -115,8 +112,8 @@ describe('Test: service/Broker', function () {
 
     broker.onConnection(dummySocket);
 
-    should(backendConstructorSpy.calledOnce).be.true();
-    should(backendConstructorSpy.calledWith(dummySocket, dummyContext, dummyTimeout)).be.true();
+    should(BackendConstructorSpy.calledOnce).be.true();
+    should(BackendConstructorSpy.calledWith(dummySocket, dummyContext, dummyTimeout)).be.true();
     should(getAllSpy.calledOnce).be.true();
     should(sendRawSpy.calledTwice).be.true();
     should(addEnvelopeStub.getCall(0).calledWith({}, 'aConnection', 'connection')).be.true();
@@ -143,7 +140,7 @@ describe('Test: service/Broker', function () {
       addEnvelopeStub = sandbox.stub(Broker.prototype, 'addEnvelope'),
       handleBackendRegistrationStub = sandbox.stub(Broker.prototype, 'handleBackendRegistration');
 
-    backendConstructorSpy.reset();
+    BackendConstructorSpy.reset();
     sendRawSpy.reset();
     rawError = true;
     broker.context = dummyContext;
@@ -151,8 +148,8 @@ describe('Test: service/Broker', function () {
 
     broker.onConnection(dummySocket);
 
-    should(backendConstructorSpy.calledOnce).be.true();
-    should(backendConstructorSpy.calledWith(dummySocket, dummyContext, dummyTimeout)).be.true();
+    should(BackendConstructorSpy.calledOnce).be.true();
+    should(BackendConstructorSpy.calledWith(dummySocket, dummyContext, dummyTimeout)).be.true();
     should(getAllSpy.calledOnce).be.true();
     should(sendRawSpy.calledOnce).be.true();
     should(addEnvelopeStub.getCall(0).calledWith({}, 'aConnection', 'connection')).be.true();
@@ -186,52 +183,39 @@ describe('Test: service/Broker', function () {
     should(dummyBackend.socket.close.calledOnce).be.true();
   });
 
-  it('method handleBackendRegistration must initialize the resend process if httpPort of backend is set', () => {
+  it('method handleBackendRegistration should register a backend if its HTTP port is available', () => {
     var
-      broker = new Broker(),
-      dummyBackend = {
-        httpPort: 1234
-      },
       dummyContext = {
-        backendHandler: {
-          addBackend: sandbox.spy()
-        }
+        backendHandler: {addBackend: sinon.stub()}
       },
-      resendPendingStub = sandbox.stub(Broker.prototype, 'resendPending');
+      dummyBackend = {
+        httpPort: true
+      },
+      broker = new Broker();
 
     broker.context = dummyContext;
-    broker.handleBackendRegistration(dummyBackend, null);
+    broker.handleBackendRegistration(dummyBackend);
 
-    should(resendPendingStub.calledOnce).be.true();
-    should(dummyContext.backendHandler.addBackend.calledOnce).be.true();
     should(dummyContext.backendHandler.addBackend.calledWith(dummyBackend)).be.true();
   });
 
-  it('method handleBackendRegistration must stand-by the resend process as a callable function set in the backend', () => {
+  it('method handleBackendRegistration should postpone registration of a backend if its HTTP port is unavailable', () => {
     var
-      broker = new Broker(),
-      dummyBackend = {
-        httpPortCallback: null
-      },
       dummyContext = {
-        backendHandler: {
-          addBackend: sandbox.spy()
-        }
+        backendHandler: {addBackend: sinon.stub()}
       },
-      resendPendingStub = sandbox.stub(Broker.prototype, 'resendPending');
+      dummyBackend = {
+        httpPort: false
+      },
+      broker = new Broker();
 
     broker.context = dummyContext;
-    broker.handleBackendRegistration(dummyBackend, null);
+    broker.handleBackendRegistration(dummyBackend);
 
-    should(dummyBackend.httpPortCallback).be.instanceOf(Function);
-
-    should(resendPendingStub.callCount).be.eql(0);
-    should(dummyContext.backendHandler.addBackend.callCount).be.eql(0);
+    should(dummyContext.backendHandler.addBackend.called).be.false();
+    should(dummyBackend.httpPortCallback).be.a.Function();
 
     dummyBackend.httpPortCallback();
-
-    should(resendPendingStub.calledOnce).be.true();
-    should(dummyContext.backendHandler.addBackend.calledOnce).be.true();
     should(dummyContext.backendHandler.addBackend.calledWith(dummyBackend)).be.true();
   });
 
@@ -249,31 +233,6 @@ describe('Test: service/Broker', function () {
     should(processMock.exit.calledWith(1)).be.true();
   });
 
-
-  it('method resendPending re-sends the current broker pending requests', () => {
-    var
-      broker = new Broker(),
-      brokerCallbackStub;
-
-    broker.brokerRequestStore = {
-      getAll: sandbox.stub().returns({
-        aRequestId: {message: 'a message', callback: 'a callback'},
-        anotherRequestId: {message: 'another message', callback: 'another callback'}
-      }),
-      clear: sandbox.spy()
-    };
-
-    brokerCallbackStub = sandbox.stub(Broker.prototype, 'brokerCallback');
-
-    broker.resendPending();
-
-    should(broker.brokerRequestStore.getAll.calledOnce).be.true();
-    should(broker.brokerRequestStore.clear.calledOnce).be.true();
-    should(brokerCallbackStub.calledTwice).be.true();
-    should(brokerCallbackStub.getCall(0).calledWith('a message', 'a callback')).be.true();
-    should(brokerCallbackStub.getCall(1).calledWith('another message', 'another callback')).be.true();
-  });
-
   it('method brokerCallback rejects the callback if a message has a bad format', () => {
     var
       broker = new Broker(),
@@ -286,7 +245,7 @@ describe('Test: service/Broker', function () {
 
     should(dummyContext.backendHandler.getBackend.calledOnce).be.true();
     should(dummyCallback.calledOnce).be.true();
-    should(dummyCallback.calledWith(new Error(`Bad format : ${dummyMessage}`))).be.true();
+    should(dummyCallback.calledWithMatch({message: `Bad format : ${dummyMessage}`, status: 400})).be.true();
   });
 
   it('method brokerCallback rejects the callback if a message has a bad structure', () => {
@@ -301,24 +260,22 @@ describe('Test: service/Broker', function () {
 
     should(dummyContext.backendHandler.getBackend.calledOnce).be.true();
     should(dummyCallback.calledOnce).be.true();
-    should(dummyCallback.calledWith(new Error(`Bad message : ${dummyMessage}`))).be.true();
+    should(dummyCallback.calledWithMatch({message: `Bad message : ${dummyMessage}`, status: 400})).be.true();
   });
 
-  it('method brokerCallback adds a request to the store if no backend', () => {
+  it('method brokerCallback rejects requests if no backend is available', () => {
     var
       broker = new Broker(),
       dummyCallback = sandbox.spy(),
       dummyMessage = {room: 'request', data: {request: {requestId: 'a proper message'}}},
       dummyContext = {backendHandler: {getBackend: sandbox.stub().returns(null)}};
 
-    broker.brokerRequestStore = {add: sandbox.stub()};
-
     broker.context = dummyContext;
     broker.brokerCallback(dummyMessage, dummyCallback);
 
     should(dummyContext.backendHandler.getBackend.calledOnce).be.true();
-    should(broker.brokerRequestStore.add.calledOnce).be.true();
-    should(broker.brokerRequestStore.add.calledWith({message: dummyMessage, callback: dummyCallback})).be.true();
+    should(dummyCallback.calledOnce).be.true();
+    should(dummyCallback.calledWithMatch(sinon.match.instanceOf(ServiceUnavailableError))).be.true();
   });
 
   it('method brokerCallback adds a request to the store if no backend', () => {
@@ -385,10 +342,10 @@ describe('Test: service/Broker', function () {
   it('method broadcastMessage resolve the promise if sendRaw issues no error', (done) => {
     var
       broker = new Broker(),
-      getAllStub = sandbox.stub().returns([new backendConstructorSpy()]),
+      getAllStub = sandbox.stub().returns([new BackendConstructorSpy()]),
       dummyMessage = {dummy: 'message'};
 
-    backendConstructorSpy.reset();
+    BackendConstructorSpy.reset();
     sendRawSpy.reset();
     rawError = false;
 
@@ -401,8 +358,7 @@ describe('Test: service/Broker', function () {
 
         done();
       })
-      .catch((error) => {
-
+      .catch(() => {
         // Should never be called
         should(false).be.true();
         done(false);
@@ -414,10 +370,10 @@ describe('Test: service/Broker', function () {
   it('method broadcastMessage rejects the promise if sendRaw issues an error', (done) => {
     var
       broker = new Broker(),
-      getAllStub = sandbox.stub().returns([new backendConstructorSpy()]),
+      getAllStub = sandbox.stub().returns([new BackendConstructorSpy()]),
       dummyMessage = {dummy: 'message'};
 
-    backendConstructorSpy.reset();
+    BackendConstructorSpy.reset();
     sendRawSpy.reset();
     rawError = true;
 
