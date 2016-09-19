@@ -2,7 +2,8 @@ var
   should = require('should'),
   sinon = require('sinon'),
   rewire = require('rewire'),
-  Router = rewire('../../lib/service/Router');
+  Router = rewire('../../lib/service/Router'),
+  ServiceUnavailableError = require('kuzzle-common-objects').Errors.serviceUnavailableError;
 
 describe('#Test: service/Router', function () {
   var
@@ -33,7 +34,8 @@ describe('#Test: service/Router', function () {
     var
       dummyContext = {
         clientConnectionStore: {get: sandbox.stub().returns({type: 'another protocol'})},
-        broker: {addClientConnection: sandbox.spy()}
+        broker: {addClientConnection: sandbox.stub()},
+        backendHandler: {getBackend: sandbox.stub().returns('foobar')}
       },
       router = new Router(dummyContext),
       expectedConnection = {id: dummySocketId, type: dummyProtocol};
@@ -47,7 +49,7 @@ describe('#Test: service/Router', function () {
         should(connection).be.deepEqual(expectedConnection);
         done();
       })
-      .catch((error) => {
+      .catch(() => {
         // Should never be called
         should(false).be.true();
         done(false);
@@ -58,7 +60,8 @@ describe('#Test: service/Router', function () {
     var
       dummyContext = {
         clientConnectionStore: {get: sandbox.stub().returns({type: dummyProtocol})},
-        broker: {addClientConnection: sandbox.spy()}
+        broker: {addClientConnection: sandbox.stub()},
+        backendHandler: {getBackend: sandbox.stub().returns('foobar')}
       },
       router = new Router(dummyContext),
       expectedConnection = {id: dummySocketId, type: dummyProtocol};
@@ -71,11 +74,21 @@ describe('#Test: service/Router', function () {
         should(connection).be.deepEqual(expectedConnection);
         done();
       })
-      .catch((error) => {
+      .catch(() => {
         // Should never be called
         should(false).be.true();
         done(false);
       });
+  });
+
+  it('method newConnection should reject the promise if no backend is available', () => {
+    var
+      dummyContext = {
+        backendHandler: {getBackend: sandbox.stub().returns(null)}
+      },
+      router = new Router(dummyContext);
+
+    return should(router.newConnection(dummyProtocol, dummySocketId)).be.rejectedWith(ServiceUnavailableError);
   });
 
   it('method execute calls the broker properly and resolves to the response', (done) => {
