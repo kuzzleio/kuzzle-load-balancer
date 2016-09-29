@@ -1,8 +1,12 @@
 {
   "kuzzle-plugin-socketio": {
     "activated": true,
-    "loadedBy": "server",
     "port": "7512",
     "room": "kuzzle"
-  }
+  },
+  "kuzzle-plugin-websocket": {
+		"activated": true,
+		"port": "7513",
+		"room": "kuzzle"
+	}
 }
