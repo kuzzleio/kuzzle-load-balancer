@@ -5,8 +5,8 @@
     "room": "kuzzle"
   },
   "kuzzle-plugin-websocket": {
-		"activated": true,
-		"port": "7513",
-		"room": "kuzzle"
-	}
+    "activated": true,
+    "port": "7513",
+    "room": "kuzzle"
+  }
 }
