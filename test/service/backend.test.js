@@ -545,11 +545,11 @@ describe('Test: service/Backend', function () {
       cb = () => {},
       message = 'foobar';
 
-      backend.socket.send = sandbox.spy();
+    backend.socket.send = sandbox.spy();
 
-      backend.sendRaw(message, cb);
+    backend.sendRaw(message, cb);
 
-      should(backend.socket.send.calledOnce).be.true();
-      should(backend.socket.send.calledWith(message, cb));
+    should(backend.socket.send.calledOnce).be.true();
+    should(backend.socket.send.calledWith(message, cb));
   });
 });

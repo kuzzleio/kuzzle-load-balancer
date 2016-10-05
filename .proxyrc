@@ -6,7 +6,7 @@
       "npmVersion": "2.0.1"
     },
     "kuzzle-plugin-websocket": {
-      "npmVersion": "1.0.3"
+      "npmVersion": "1.0.4"
     }
   },
   // Timeout when a request is aborted and an error is returned in ms

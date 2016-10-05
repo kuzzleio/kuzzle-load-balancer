@@ -54,7 +54,7 @@ describe('Test: core/Context', function () {
     var
       RewiredContext = rewire('../../lib/core/Context'),
       context,
-      fakeErrorObject =  {
+      fakeErrorObject = {
         'fooBar': function () {}
       };
 

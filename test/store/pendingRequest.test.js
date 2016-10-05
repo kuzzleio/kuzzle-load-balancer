@@ -49,7 +49,7 @@ describe('Test: store/PendingRequest', function () {
       dummyPendingWithCallback = {
         message: {data: {connection: {}, request: {requestId: 'exists'}}},
         timeout: 'timeoutDummyPendingExist',
-        callback: function (error, result) {
+        callback: function (error) {
           if (error) {
             should(error).be.instanceOf(InternalError);
             return done();
