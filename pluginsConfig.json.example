@@ -1,10 +1,12 @@
 {
   "kuzzle-plugin-socketio": {
+    "npmVersion": "2.0.1",
     "activated": true,
     "port": "7512",
     "room": "kuzzle"
   },
   "kuzzle-plugin-websocket": {
+    "npmVersion": "1.0.4",
     "activated": true,
     "port": "7513",
     "room": "kuzzle"
