@@ -1,14 +1,6 @@
 #!/bin/sh
 
-echo "Starting Kuzzle Load balancer..."
-npm install
+echo "[$(date --rfc-3339 seconds)] - Starting Kuzzle Proxy..."
 
-npm run plugins
-
-sleep 1
-
-pm2 start /config/pm2.json --silent
-
-pm2 sendSignal -s USR1 KuzzleLB
-
-pm2 logs
+pm2 start --silent /config/pm2.json
+pm2 logs --lines 0 --raw

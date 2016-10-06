@@ -11,6 +11,7 @@ RUN apt-get update && apt-get install -y \
       g++ \
       python && \
     npm install && \
+    npm run plugins && \
     apt-get clean && \
     apt-get remove -y \
       build-essential \

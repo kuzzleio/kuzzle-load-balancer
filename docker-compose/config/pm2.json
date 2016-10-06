@@ -1,6 +1,6 @@
 {
   "apps": [{
-    "name": "KuzzleLB",
+    "name": "KuzzleProxy",
     "script": "index.js",
     "watch": ["lib"]
   }]
