@@ -1,0 +1,7 @@
+{
+  "apps": [{
+    "name": "KuzzleLB",
+    "script": "index.js",
+    "watch": ["lib"]
+  }]
+}

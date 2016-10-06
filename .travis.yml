@@ -11,6 +11,6 @@ script:
     -e TRAVIS_JOB_ID=$TRAVIS_JOB_ID
     -e TRAVIS_PULL_REQUEST=$TRAVIS_PULL_REQUEST
     -e TRAVIS_REPO_SLUG=$TRAVIS_REPO_SLUG
-    kuzzleio/proxy-test /bin/sh /var/app/bin/run-test-travis.sh
+    kuzzleio/proxy-test /bin/sh /var/app/docker-compose/scripts/run-test-travis.sh
 notifications:
   email: false
