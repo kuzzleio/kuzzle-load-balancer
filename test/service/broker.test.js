@@ -16,31 +16,58 @@ describe('Test: service/Broker', function () {
     dummyAddress = 'an Address',
     rawError,
     dummyError = new Error('an Error'),
+    webSocketConstructorSpy,
+    processMock,
+    serverMock,
+    sendRawSpy,
+    BackendConstructorSpy,
+    reset;
+
+  beforeEach(() => {
     webSocketConstructorSpy = sandbox.spy(function () {
       serverSocket = new EventEmitter();
+      serverSocket.close = sandbox.stub().yields();
       return serverSocket;
-    }),
+    });
+
+    processMock = {
+      exit: sandbox.spy()
+    };
+
+    serverMock = {
+      on: sinon.spy(),
+      listen: sinon.stub().yields()
+    };
+
     sendRawSpy = sandbox.spy(function (dummy, callback) {
       if (rawError) {
         return callback(dummyError);
       }
 
       callback(null, {});
-    }),
+    });
+
     BackendConstructorSpy = sandbox.spy(function () {
       return {sendRaw: sendRawSpy};
-    }),
-    processMock = {
-      exit: sandbox.spy()
-    };
+    });
 
-  before(() => {
-    Broker.__set__('WebSocketServer', webSocketConstructorSpy);
-    Broker.__set__('Backend', BackendConstructorSpy);
-    Broker.__set__('process', processMock);
-  });
+    reset = Broker.__set__({
+      fs: {
+        unlinkSync: sinon.spy()
+      },
+      WebSocketServer: webSocketConstructorSpy,
+      Backend: BackendConstructorSpy,
+      process: processMock,
+      http: {
+        createServer: sinon.stub().returns(serverMock)
+      },
+      net: {
+        connect: sinon.stub().returns({
+          on: sinon.spy()
+        })
+      }
+    });
 
-  beforeEach(() => {
     rawError = false;
     spyConsoleError = sandbox.spy();
     spyConsoleLog = sandbox.spy();
@@ -48,6 +75,7 @@ describe('Test: service/Broker', function () {
   });
 
   afterEach(() => {
+    reset();
     sandbox.restore();
   });
 
@@ -64,100 +92,218 @@ describe('Test: service/Broker', function () {
       broker = new Broker(),
       serverStub = sandbox.stub(Broker.prototype, 'initiateServer'),
       dummyContext = {dummy: 'context'},
-      dummySocketOption = { dummy: 'socketOptions'},
-      dummyBackendTimeout = 1234;
+      config = {foo: 'bar'};
 
-    broker.init(dummyContext, dummySocketOption, dummyBackendTimeout);
+    broker.init(dummyContext, config);
 
     should(serverStub.calledOnce).be.eql(true);
     should(broker.context).be.eql(dummyContext);
-    should(broker.socketOptions).be.eql(dummySocketOption);
-    should(broker.backendTimeout).be.eql(dummyBackendTimeout);
+    should(broker.config).be.exactly(config);
   });
 
-  it('method initiateServer plugs good listeners to events', () => {
-    var broker = new Broker(),
-      dummySocketOption = {port: 1234},
-      connectionStub = sandbox.stub(Broker.prototype, 'onConnection'),
-      errorStub = sandbox.stub(Broker.prototype, 'onError');
-
-    broker.initiateServer(dummySocketOption);
-
-    serverSocket.emit('connection');
-    serverSocket.emit('error');
-
-    should(connectionStub.calledOnce).be.eql(true);
-    should(errorStub.calledOnce).be.eql(true);
-    should(webSocketConstructorSpy.calledWith({port: dummySocketOption.port})).be.true();
-    should(spyConsoleLog.calledOnce).be.eql(true);
-    should(spyConsoleLog.calledWith(`Waiting for connections on port ${dummySocketOption.port}`)).be.eql(true);
-  });
-
-  it('method onConnection plays client connections properly', (done) => {
+  describe('#initiateServer', () => {
     var
-      broker = new Broker(),
-      dummySocket = {dummy: 'socket', upgradeReq: {connection: {remoteAddress: dummyAddress}}},
-      getAllSpy = sandbox
-        .stub()
-        .returns({aRequestId: 'aConnection', anotherRequestId: 'anotherConnection'}),
-      dummyContext = {dummy: 'context', clientConnectionStore: {getAll: getAllSpy}},
-      dummyTimeout = 1234,
-      addEnvelopeStub = sandbox
-        .stub(Broker.prototype, 'addEnvelope')
-        .returnsArg(1),
-      handleBackendRegistrationStub = sandbox.stub(Broker.prototype, 'handleBackendRegistration');
+      broker;
 
-    broker.context = dummyContext;
-    broker.backendTimeout = dummyTimeout;
+    beforeEach(() => {
+      broker = new Broker();
+      sandbox.stub(Broker.prototype, 'onConnection');
+      sandbox.stub(Broker.prototype, 'onError');
+    });
 
-    broker.onConnection(dummySocket);
+    it('should create a tcp websocket server', () => {
+      broker.config = {
+        port: 1234
+      };
 
-    should(BackendConstructorSpy.calledOnce).be.true();
-    should(BackendConstructorSpy.calledWith(dummySocket, dummyContext, dummyTimeout)).be.true();
-    should(getAllSpy.calledOnce).be.true();
-    should(sendRawSpy.calledTwice).be.true();
-    should(addEnvelopeStub.getCall(0).calledWith({}, 'aConnection', 'connection')).be.true();
-    should(addEnvelopeStub.getCall(1).calledWith({}, 'anotherConnection', 'connection')).be.true();
-    should(sendRawSpy.getCall(0).calledWith(JSON.stringify('aConnection'))).be.true();
-    should(sendRawSpy.getCall(1).calledWith(JSON.stringify('anotherConnection'))).be.true();
-    setTimeout(() => {
-      should(handleBackendRegistrationStub.calledOnce).be.true();
-      should(handleBackendRegistrationStub.getCall(0).args[1]).be.eql(null);
+      broker.initiateServer();
 
-      done();
-    }, 20);
+      should(serverMock.listen)
+        .be.calledOnce()
+        .be.calledWith(broker.config.port);
+
+      should(webSocketConstructorSpy)
+        .be.calledOnce();
+    });
+
+    it('should create a tcp websocket server bound to the give host', () => {
+      broker.config = {
+        port: 1234,
+        host: 'host'
+      };
+
+      broker.initiateServer();
+
+      should(serverMock.listen)
+        .be.calledOnce()
+        .be.calledWith(broker.config.port, broker.config.host);
+    });
+
+    it('should fail if not valid connection is given', () => {
+      broker.config = {};
+
+      broker.initiateServer();
+
+      should(spyConsoleError)
+        .be.calledOnce()
+        .be.calledWith('Invalid configuration provided. Either "socket" or "port" must be provided.');
+      should(processMock.exit)
+        .be.calledOnce()
+        .be.calledWith(1);
+    });
+
+    it('should create a unix socket websocket server and handle EADDRINUSE errors', () => {
+      var
+        serverErrorCB,
+        netConnectCB,
+        netErrorCB;
+
+      broker.config = {
+        socket: '/socket'
+      };
+
+      broker.initiateServer();
+
+      should(serverMock.on)
+        .be.calledOnce()
+        .be.calledWith('error');
+
+      serverErrorCB = serverMock.on.firstCall.args[1];
+
+      should(() => {
+        serverErrorCB(new Error('test'));
+      }).throw('test');
+
+      serverErrorCB({code: 'EADDRINUSE', message: 'test'});
+
+      should(Broker.__get__('net.connect'))
+        .be.calledOnce()
+        .be.calledWith(broker.config.socket);
+
+      netConnectCB = Broker.__get__('net.connect').firstCall.args[1];
+
+      should(() => {
+        netConnectCB();
+      }).throw('test');
+
+      netErrorCB = Broker.__get__('net.connect').firstCall.returnValue.on.firstCall.args[1];
+
+      should(() => {
+        netErrorCB(new Error('test'));
+      }).throw('test');
+
+      should(serverMock.listen)
+        .be.calledOnce();
+
+      netErrorCB({code: 'ECONNREFUSED'});
+
+      should(Broker.__get__('fs.unlinkSync'))
+        .be.calledOnce()
+        .be.calledWith(broker.config.socket);
+
+      should(Broker.__get__('WebSocketServer').firstCall.returnValue.close)
+        .be.calledOnce();
+
+      should(serverMock.listen)
+        .be.calledTwice();
+
+    });
   });
 
-  it('method onConnection must catch an error when it happens', (done) => {
-    var
-      broker = new Broker(),
-      dummySocket = {dummy: 'socket', upgradeReq: {connection: {remoteAddress: dummyAddress}}},
-      getAllSpy = sandbox
-        .stub()
-        .returns({aRequestId: 'aConnection', anotherRequestId: 'anotherConnection'}),
-      dummyContext = {dummy: 'context', clientConnectionStore: {getAll: getAllSpy}},
-      dummyTimeout = 1234,
-      addEnvelopeStub = sandbox.stub(Broker.prototype, 'addEnvelope'),
-      handleBackendRegistrationStub = sandbox.stub(Broker.prototype, 'handleBackendRegistration');
+  describe('#onConnection', () => {
+    it('method onConnection plays client connections properly', (done) => {
+      var
+        broker = new Broker(),
+        dummySocket = {dummy: 'socket', upgradeReq: {connection: {remoteAddress: dummyAddress}}},
+        getAllSpy = sandbox
+          .stub()
+          .returns({aRequestId: 'aConnection', anotherRequestId: 'anotherConnection'}),
+        dummyContext = {dummy: 'context', clientConnectionStore: {getAll: getAllSpy}},
+        dummyTimeout = 1234,
+        addEnvelopeStub = sandbox
+          .stub(Broker.prototype, 'addEnvelope')
+          .returnsArg(1),
+        handleBackendRegistrationStub = sandbox.stub(Broker.prototype, 'handleBackendRegistration');
 
-    BackendConstructorSpy.reset();
-    sendRawSpy.reset();
-    rawError = true;
-    broker.context = dummyContext;
-    broker.backendTimeout = dummyTimeout;
+      broker.context = dummyContext;
+      broker.config = {
+        timeout: dummyTimeout
+      };
 
-    broker.onConnection(dummySocket);
+      broker.onConnection(dummySocket);
 
-    should(BackendConstructorSpy.calledOnce).be.true();
-    should(BackendConstructorSpy.calledWith(dummySocket, dummyContext, dummyTimeout)).be.true();
-    should(getAllSpy.calledOnce).be.true();
-    should(sendRawSpy.calledOnce).be.true();
-    should(addEnvelopeStub.getCall(0).calledWith({}, 'aConnection', 'connection')).be.true();
-    setTimeout(() => {
-      should(handleBackendRegistrationStub.calledOnce).be.true();
-      should(handleBackendRegistrationStub.getCall(0).args[1]).be.deepEqual(dummyError);
-      done();
-    }, 20);
+      should(BackendConstructorSpy)
+        .be.calledOnce()
+        .be.calledWith(dummySocket, dummyContext, broker.config.timeout);
+      should(getAllSpy)
+        .be.calledOnce();
+      should(sendRawSpy)
+        .be.calledTwice();
+      should(addEnvelopeStub.getCall(0).calledWith({}, 'aConnection', 'connection')).be.true();
+      should(addEnvelopeStub.getCall(1).calledWith({}, 'anotherConnection', 'connection')).be.true();
+      should(sendRawSpy.getCall(0).calledWith(JSON.stringify('aConnection'))).be.true();
+      should(sendRawSpy.getCall(1).calledWith(JSON.stringify('anotherConnection'))).be.true();
+      setTimeout(() => {
+        should(handleBackendRegistrationStub.calledOnce).be.true();
+        should(handleBackendRegistrationStub.getCall(0).args[1]).be.eql(null);
+
+        done();
+      }, 20);
+    });
+
+    it('method onConnection must catch an error when it happens', (done) => {
+      var
+        broker = new Broker(),
+        dummySocket = {dummy: 'socket', upgradeReq: {connection: {remoteAddress: dummyAddress}}},
+        getAllSpy = sandbox
+          .stub()
+          .returns({aRequestId: 'aConnection', anotherRequestId: 'anotherConnection'}),
+        dummyContext = {dummy: 'context', clientConnectionStore: {getAll: getAllSpy}},
+        dummyTimeout = 1234,
+        addEnvelopeStub = sandbox.stub(Broker.prototype, 'addEnvelope'),
+        handleBackendRegistrationStub = sandbox.stub(Broker.prototype, 'handleBackendRegistration');
+
+      BackendConstructorSpy.reset();
+      sendRawSpy.reset();
+      rawError = true;
+      broker.context = dummyContext;
+      broker.config = {
+        timeout: dummyTimeout
+      };
+
+      broker.onConnection(dummySocket);
+
+      should(BackendConstructorSpy.calledOnce).be.true();
+      should(BackendConstructorSpy.calledWith(dummySocket, dummyContext, dummyTimeout)).be.true();
+      should(getAllSpy.calledOnce).be.true();
+      should(sendRawSpy.calledOnce).be.true();
+      should(addEnvelopeStub.getCall(0).calledWith({}, 'aConnection', 'connection')).be.true();
+      setTimeout(() => {
+        should(handleBackendRegistrationStub.calledOnce).be.true();
+        should(handleBackendRegistrationStub.getCall(0).args[1]).be.deepEqual(dummyError);
+        done();
+      }, 20);
+    });
+
+    it('should log new connections', () => {
+      var
+        broker = new Broker();
+
+      broker.config = {
+        socket: 'socket'
+      };
+      broker.context = {
+        clientConnectionStore: {
+          getAll: sinon.spy()
+        }
+      };
+
+      broker.onConnection();
+
+      should(spyConsoleLog)
+        .be.calledOnce()
+        .be.calledWith('Connection established with a new backend');
+    });
   });
 
   it('method handleBackendRegistration must console error when an error has occured and close the socket', () => {
