@@ -5,7 +5,6 @@
   "main": "lib/index.js",
   "scripts": {
     "start": "node index.js",
-    "plugins": "node ./plugins.js",
     "lint": "eslint --max-warnings=0 ./lib ./test",
     "test": "npm run --silent lint && npm run unit-testing --coverage",
     "unit-testing": "istanbul test _mocha",
