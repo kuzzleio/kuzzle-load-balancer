@@ -18,5 +18,12 @@
     // Broker port waiting for connections
     "port": 7331
   },
-  "httpPort": 7511
+  // * http port: port on which Kuzzle will listen to REST requests.
+  // * http maxRequestSize: the size limit of a request. If it's a string, the
+  //   value is passed to the "bytes" library (https://www.npmjs.com/package/bytes).
+  //   If this is a number, then the value specifies the number of bytes.
+  "http": {
+    "port": 7511,
+    "maxRequestSize": "1MB"
+  }
 }
