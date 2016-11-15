@@ -81,12 +81,13 @@ describe('Test: service/Backend', function () {
     it('onMessage must write a console error if JSON.parse does not do what is expected', () => {
       var
         backend = initBackend(dummyContext),
-        badMessage = 'unexpected',
-        error = 'SyntaxError: Unexpected token u';
+        badMessage = 'unexpected';
 
       backend.onMessage(badMessage);
 
-      should(spyConsoleError.calledWith(`Bad message received from the backend : ${badMessage}; Reason : ${error}`)).be.true();
+      should(spyConsoleError)
+        .be.calledOnce()
+        .be.calledWith('Bad message received from the backend : unexpected; Reason : SyntaxError: Unexpected token u');
     });
 
     it('message room "response" must call the promise resolution if message is ok', () => {

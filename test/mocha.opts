@@ -1,5 +1,7 @@
 -b
---require should
+-r should
+-r should-sinon
+-r sinon-as-promised
 --reporter spec
 --recursive
 --slow 2000
