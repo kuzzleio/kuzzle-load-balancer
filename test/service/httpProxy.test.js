@@ -39,20 +39,16 @@ describe('Test: service/HttpProxy', function () {
     // Message sent to Kuzzle
     message = {
       data: {
-        request: new context.constructors.RequestObject({
-          body: {
-            url: requestStub.url,
-            method: requestStub.method,
-            headers: requestStub.headers,
-            content: ''
-          }
-        })
+        request: {
+          url: requestStub.url,
+          method: requestStub.method,
+          headers: requestStub.headers,
+          content: ''
+        }
       },
       room: 'httpRequest'
     };
 
-    delete message.data.request.requestId;
-    delete message.data.request.timestamp;
 
     // HTTP server stub
     httpServerStub = { listen: sinon.stub() };
@@ -163,7 +159,7 @@ describe('Test: service/HttpProxy', function () {
         })
       };
 
-      message.data.request.data.body.content = 'foobarbaz';
+      message.data.request.content = 'foobarbaz';
 
       messageHandler(requestStub, responseStub);
       requestStub.emit('data', 'foo');
@@ -193,7 +189,7 @@ describe('Test: service/HttpProxy', function () {
 
       httpProxy.maxRequestSize = 3;
 
-      message.data.request.data.body.content = 'foobarbaz';
+      message.data.request.content = 'foobarbaz';
 
       messageHandler(requestStub, responseStub);
       requestStub.emit('data', 'foo');
