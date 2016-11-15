@@ -30,6 +30,7 @@
     "kuzzle-common-objects": "1.0.4",
     "lodash": "^4.14.1",
     "proper-lockfile": "^2.0.0",
+    "proxyquire": "^1.7.10",
     "rc": "^1.1.6",
     "utf-8-validate": "^1.2.1",
     "ws": "^1.1.1"

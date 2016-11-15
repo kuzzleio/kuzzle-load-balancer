@@ -1,80 +1,219 @@
+'use strict';
+
 var
   should = require('should'),
+  bytes = require('bytes'),
+  proxyquire = require('proxyquire'),
+  EventEmitter = require('events'),
   sinon = require('sinon'),
-  rewire = require('rewire'),
-  HttpProxy = rewire('../../lib/service/HttpProxy');
+  Context = require.main.require('lib/core/Context');
 
 describe('Test: service/HttpProxy', function () {
-  var
-    sandbox = sinon.sandbox.create(),
-    listenerSpy = sandbox.spy(),
-    bouncyCallback,
-    bouncySpy = sandbox.spy((callback) => {
-      bouncyCallback = callback;
-      return {listen: listenerSpy};
-    }),
-    bounceSpy = sandbox.spy();
-
-  before(() => {
-    HttpProxy.__set__('bouncy', bouncySpy);
-  });
+  let
+    HttpProxy,
+    httpProxy,
+    messageHandler,
+    httpServerStub,
+    requestStub,
+    responseStub,
+    message,
+    context = new Context(sinon.stub(), 'mode');
 
   beforeEach(() => {
+    // Response stub
+    responseStub = {
+      writeHead: sinon.stub(),
+      end: sinon.stub()
+    };
+
+    // Request stub
+    requestStub = new EventEmitter();
+    Object.assign(requestStub, {
+      resume: sinon.stub(),
+      url: 'url',
+      method: 'method',
+      headers: { some: 'headers' }
+    });
+    sinon.spy(requestStub, 'removeAllListeners');
+
+    // Message sent to Kuzzle
+    message = {
+      data: {
+        request: new context.constructors.RequestObject({
+          body: {
+            url: requestStub.url,
+            method: requestStub.method,
+            headers: requestStub.headers,
+            content: ''
+          }
+        })
+      },
+      room: 'httpRequest'
+    };
+
+    delete message.data.request.requestId;
+    delete message.data.request.timestamp;
+
+    // HTTP server stub
+    httpServerStub = { listen: sinon.stub() };
+    HttpProxy = proxyquire('../../lib/service/HttpProxy', {
+      'http': {
+        createServer: function (handler) {
+          messageHandler = handler;
+          return httpServerStub;
+        }
+      }
+    });
+
+    httpProxy = new HttpProxy();
   });
 
-  afterEach(() => {
-    sandbox.restore();
+  describe('#init', () => {
+    it('should throw if the maxRequestSize parameter is undefined', () => {
+      should(function () { httpProxy.init(context, {http: {port: 17511}}); }).throw();
+    });
+
+    it('should throw if the maxRequestSize parameter does not represent a size', () => {
+      should(function () { httpProxy.init(context, {http: {port: 17511, maxRequestSize: 'foobar'}}); }).throw();
+    });
+
+    it('should throw an error if there is no HTTP port configured', () => {
+      should(function () { httpProxy.init(context, {http: {maxRequestSize: '1MB'}}); }).throw();
+    });
+
+    it('should start a HTTP server', () => {
+      httpProxy.init(context, {http: {port: 17511, maxRequestSize: '1MB'}});
+
+      should(httpProxy.maxRequestSize).be.eql(bytes.parse('1MB'));
+      should(httpProxy.server).be.eql(httpServerStub);
+      should(httpServerStub.listen.calledWith(17511)).be.true();
+    });
   });
 
-  it('method init provides the callback to bouncy, call the listen method and call the bounce method if a backend is available when a request is received', () => {
-    var
-      httpProxy = new HttpProxy(),
-      dummySocketIp = 'a socket ip',
-      dummyHttpPort = 1234,
-      getBackendStub = sandbox.stub().returns({socketIp: dummySocketIp, httpPort: dummyHttpPort}),
-      dummyContext = {backendHandler: {getBackend: getBackendStub}};
+  describe('#request handling', () => {
+    beforeEach(() => {
+      httpProxy.init(context, {http: {port: 17511, maxRequestSize: '1MB'}});
+    });
 
-    httpProxy.init(dummyContext, dummyHttpPort);
-
-    should(bouncySpy.calledOnce).be.true();
-    should(bouncySpy.getCall(0).args[0]).be.instanceOf(Function);
-    should(listenerSpy.calledOnce).be.true();
-    should(listenerSpy.calledWith(dummyHttpPort)).be.true();
-
-    bouncyCallback({}, {}, bounceSpy);
-
-    should(getBackendStub.calledOnce).be.true();
-    should(bounceSpy.calledOnce).be.true();
-    should(bounceSpy.calledWith(dummySocketIp, dummyHttpPort)).be.true();
-  });
-  it('method init provides the callback to bouncy, call the listen method and does not call the bounce method if no backend is available when a request is received', () => {
-    var
-      httpProxy = new HttpProxy(),
-      dummyHttpPort = 1234,
-      getBackendStub = sandbox.stub().returns(false),
-      dummyContext = {backendHandler: {getBackend: getBackendStub}},
-      fakeResponse = {
-        writeHead: sinon.stub(),
-        end: sinon.stub()
+    it('should transmit a request to Kuzzle and its response back to the client', () => {
+      context.broker = {
+        brokerCallback: sinon.stub().yields(null, {
+          status: 1234,
+          type: 'type',
+          response: 'response'
+        })
       };
 
-    bouncySpy.reset();
-    listenerSpy.reset();
-    bounceSpy.reset();
-    bouncyCallback = null;
+      messageHandler(requestStub, responseStub);
+      requestStub.emit('end');
 
-    httpProxy.init(dummyContext, dummyHttpPort);
 
-    should(bouncySpy.calledOnce).be.true();
-    should(bouncySpy.getCall(0).args[0]).be.instanceOf(Function);
-    should(listenerSpy.calledOnce).be.true();
-    should(listenerSpy.calledWith(dummyHttpPort)).be.true();
+      should(context.broker.brokerCallback.calledWith(sinon.match(message), sinon.match.func)).be.true();
 
-    should(bouncyCallback({}, fakeResponse, bounceSpy)).be.false();
-    should(fakeResponse.writeHead.calledWith(503, {'Content-Type': 'application/json'})).be.true();
-    should(fakeResponse.end.calledOnce).be.true();
+      should(responseStub.writeHead.calledWithMatch(1234, {
+        'Content-Type': 'type',
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'X-Requested-With'
+      })).be.true();
 
-    should(getBackendStub.calledOnce).be.true();
-    should(bounceSpy.callCount).be.eql(0);
+      should(responseStub.end.calledWith('response')).be.true();
+    });
+
+    it('should forward a Kuzzle error to a client', () => {
+      let error = {status: 1324, message: 'error'};
+
+      context.broker = {
+        brokerCallback: sinon.stub().yields(error)
+      };
+
+      messageHandler(requestStub, responseStub);
+      requestStub.emit('end');
+
+      should(context.broker.brokerCallback.calledWith(sinon.match(message), sinon.match.func)).be.true();
+
+      should(responseStub.writeHead.calledWithMatch(error.status, {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'X-Requested-With'
+      })).be.true();
+
+      should(responseStub.end.calledWith(JSON.stringify(error))).be.true();
+    });
+
+    it('should respond with an error if the content length is too large', () => {
+      requestStub.headers['content-length'] = bytes.parse('2MB');
+      messageHandler(requestStub, responseStub);
+
+      should(responseStub.writeHead.calledWithMatch(413, {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'X-Requested-With'
+      })).be.true();
+
+      should(requestStub.resume.calledOnce).be.true();
+      should(responseStub.end.firstCall.args[0]).startWith('{"status":413,"message":"Error: maximum HTTP request size exceeded","stack":');
+    });
+
+    it('should forward to Kuzzle the request content if there is one', () => {
+      context.broker = {
+        brokerCallback: sinon.stub().yields(null, {
+          status: 1234,
+          type: 'type',
+          response: 'response'
+        })
+      };
+
+      message.data.request.data.body.content = 'foobarbaz';
+
+      messageHandler(requestStub, responseStub);
+      requestStub.emit('data', 'foo');
+      requestStub.emit('data', 'bar');
+      requestStub.emit('data', 'baz');
+      requestStub.emit('end');
+
+      should(context.broker.brokerCallback.calledWith(sinon.match(message), sinon.match.func)).be.true();
+
+      should(responseStub.writeHead.calledWithMatch(1234, {
+        'Content-Type': 'type',
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'X-Requested-With'
+      })).be.true();
+
+      should(responseStub.end.calledWith('response')).be.true();
+    });
+
+    it('should respond with an error if the content size is too large', () => {
+      context.broker = {
+        brokerCallback: sinon.stub().yields(null, {
+          status: 1234,
+          type: 'type',
+          response: 'response'
+        })
+      };
+
+      httpProxy.maxRequestSize = 3;
+
+      message.data.request.data.body.content = 'foobarbaz';
+
+      messageHandler(requestStub, responseStub);
+      requestStub.emit('data', 'foo');
+      requestStub.emit('data', 'bar');
+      requestStub.emit('data', 'baz');
+      requestStub.emit('end');
+
+      should(context.broker.brokerCallback.called).be.false();
+      should(requestStub.removeAllListeners.calledWith('data')).be.true();
+      should(requestStub.removeAllListeners.calledWith('end')).be.true();
+      should(requestStub.resume.called).be.true();
+
+      should(responseStub.writeHead.calledWithMatch(413, {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'X-Requested-With'
+      })).be.true();
+
+      should(responseStub.end.firstCall.args[0]).startWith('{"status":413,"message":"Error: maximum HTTP request size exceeded","stack":');
+
+    });
   });
 });

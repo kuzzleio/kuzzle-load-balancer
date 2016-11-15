@@ -176,7 +176,7 @@ describe('Test: core/KuzzleProxy', function () {
     var iniProxyStub = sandbox.stub(proxy.httpProxy, 'init');
 
     proxy.initHttpProxy();
-    should(iniProxyStub.calledWith(proxy.context, proxy.config.httpPort)).be.true();
+    should(iniProxyStub.calledWith(proxy.context, proxy.config)).be.true();
   });
 
   it('method readPluginsConfiguration must return the configuration of the plugins', () => {

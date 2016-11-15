@@ -61,8 +61,6 @@ describe('Test: service/Backend', function () {
     should(messageRoomsStub.calledOnce).be.true();
     should(onMessageStub.calledOnce).be.true();
     should(backend.backendRequestStore).be.instanceOf(PendingRequest);
-    should(backend.httpPort).be.eql(null);
-    should(backend.httpPortCallback).be.eql(null);
     should(backend.onMessageRooms).be.an.Object();
   });
 
@@ -139,6 +137,64 @@ describe('Test: service/Backend', function () {
       should(requestExistsStub.calledOnce).be.true();
       should(requestExistsStub.calledWith('aRequestId')).be.true();
       should(requestGetStub.callCount).be.eql(0);
+      should(requestRemoveStub.callCount).be.eql(0);
+    });
+
+    it('message room "httpResponse" must call the promise resolution if message is ok', () => {
+      var
+        backend = initBackend(dummyContext),
+        goodResponse = {
+          room: 'httpResponse',
+          data: {
+            requestId: 'aRequestId',
+            response: 'aResponse',
+            type: 'aType',
+            status: 'httpStatus'
+          }
+        },
+        goodResponseMessage = JSON.stringify(goodResponse),
+        requestGetStub,
+        requestRemoveStub,
+        responseCB = sandbox.spy();
+
+      requestRemoveStub = sandbox.stub(backend.backendRequestStore, 'removeByRequestId');
+      requestGetStub = sandbox
+        .stub(backend.backendRequestStore, 'getByRequestId')
+        .returns({callback: responseCB});
+
+      backend.onMessage(goodResponseMessage);
+
+      should(responseCB.calledOnce).be.true();
+      should(responseCB.calledWithMatch(null, goodResponse.data)).be.true();
+      should(requestGetStub.calledOnce).be.true();
+      should(requestGetStub.calledWith('aRequestId')).be.true();
+      should(requestRemoveStub.calledOnce).be.true();
+      should(requestRemoveStub.calledWith('aRequestId')).be.true();
+    });
+
+    it('message room "httpResponse" should do nothing if request is unknown', () => {
+      var
+        backend = initBackend(dummyContext),
+        unexistingResponse = {
+          room: 'httpResponse',
+          data: {
+            requestId: 'aRequestId',
+            response: 'aResponse',
+            type: 'aType',
+            status: 'httpStatus'
+          }
+        },
+        unexistingResponseMessage = JSON.stringify(unexistingResponse),
+        requestGetStub,
+        requestRemoveStub;
+
+      requestGetStub = sandbox.stub(backend.backendRequestStore, 'getByRequestId').returns(undefined);
+      requestRemoveStub = sandbox.stub(backend.backendRequestStore, 'removeByRequestId');
+
+      backend.onMessage(unexistingResponseMessage);
+
+      should(requestGetStub.calledOnce).be.true();
+      should(requestGetStub.calledWith('aRequestId')).be.true();
       should(requestRemoveStub.callCount).be.eql(0);
     });
 
@@ -407,37 +463,6 @@ describe('Test: service/Backend', function () {
 
       should(stubPluginBroadcast.calledOnce).be.true();
       should(stubPluginBroadcast.calledWith(broadcast.data)).be.true();
-    });
-
-    it('message room httpPortInitialization must set the httpPort', () => {
-      var
-        backend = initBackend(dummyContext),
-        httpPort = {room: 'httpPortInitialization', data: {httpPort: 1234}},
-        httpPortMessage = JSON.stringify(httpPort);
-
-      backend.onMessage(httpPortMessage);
-
-      should(spyConsoleLog.calledOnce).be.true();
-      should(spyConsoleLog.calledWith(`Backend HTTP port of ${dummyAddress} received : 1234`)).be.true();
-      should(backend.httpPort).be.eql(1234);
-    });
-
-    it('message room httpPortInitialization must set the httpPort and call callback if set and unset it', () => {
-      var
-        backend = initBackend(dummyContext),
-        httpPort = {room: 'httpPortInitialization', data: {httpPort: 1234}},
-        httpPortMessage = JSON.stringify(httpPort),
-        httpPortCallback = sandbox.spy();
-
-      backend.httpPortCallback = httpPortCallback;
-
-      backend.onMessage(httpPortMessage);
-
-      should(spyConsoleLog.calledOnce).be.true();
-      should(spyConsoleLog.calledWith(`Backend HTTP port of ${dummyAddress} received : 1234`)).be.true();
-      should(backend.httpPort).be.eql(1234);
-      should(backend.httpPortCallback).be.eql(null);
-      should(httpPortCallback.calledOnce).be.true();
     });
 
     it('unexpected message room should write a message in console error', () => {
