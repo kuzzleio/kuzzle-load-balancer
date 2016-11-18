@@ -1,4 +1,5 @@
-// This a test file template
+'use strict';
+
 var
   should = require('should'),
   sinon = require('sinon'),
@@ -36,7 +37,7 @@ describe('Test: service/Broker', function () {
 
     serverMock = {
       on: sinon.spy(),
-      listen: sinon.stub().yields()
+      listen: sinon.stub()
     };
 
     sendRawSpy = sandbox.spy(function (dummy, callback) {
@@ -122,6 +123,9 @@ describe('Test: service/Broker', function () {
         .be.calledOnce()
         .be.calledWith(broker.config.port);
 
+      let initCB = serverMock.listen.firstCall.args[1];
+      initCB();
+
       should(webSocketConstructorSpy)
         .be.calledOnce();
     });
@@ -194,6 +198,7 @@ describe('Test: service/Broker', function () {
 
       should(serverMock.listen)
         .be.calledOnce();
+      let initCB = serverMock.listen.firstCall.args[1];
 
       netErrorCB({code: 'ECONNREFUSED'});
 
@@ -201,11 +206,21 @@ describe('Test: service/Broker', function () {
         .be.calledOnce()
         .be.calledWith(broker.config.socket);
 
+      should(Broker.__get__('WebSocketServer'))
+        .have.callCount(0);
+
+      should(serverMock.listen)
+        .be.calledTwice();
+
+      initCB();
+
+      netErrorCB({code: 'ECONNREFUSED'});
+
       should(Broker.__get__('WebSocketServer').firstCall.returnValue.close)
         .be.calledOnce();
 
       should(serverMock.listen)
-        .be.calledTwice();
+        .be.calledThrice();
 
     });
   });
