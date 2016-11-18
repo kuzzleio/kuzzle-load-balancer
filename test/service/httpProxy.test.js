@@ -17,9 +17,19 @@ describe('Test: service/HttpProxy', function () {
     requestStub,
     responseStub,
     message,
-    context = new Context(sinon.stub(), 'mode');
+    context = new Context(sinon.stub(), 'mode'),
+    config;
 
   beforeEach(() => {
+    // Config stub
+    config = {
+      http: {
+        port: 17511,
+        maxRequestSize: '1MB',
+        accessControlAllowOrigin: '*'
+      }
+    };
+
     // Response stub
     responseStub = {
       writeHead: sinon.stub(),
@@ -78,7 +88,7 @@ describe('Test: service/HttpProxy', function () {
     });
 
     it('should start a HTTP server', () => {
-      httpProxy.init(context, {http: {port: 17511, maxRequestSize: '1MB'}});
+      httpProxy.init(context, config);
 
       should(httpProxy.maxRequestSize).be.eql(bytes.parse('1MB'));
       should(httpProxy.server).be.eql(httpServerStub);
@@ -88,7 +98,7 @@ describe('Test: service/HttpProxy', function () {
 
   describe('#request handling', () => {
     beforeEach(() => {
-      httpProxy.init(context, {http: {port: 17511, maxRequestSize: '1MB'}});
+      httpProxy.init(context, config);
     });
 
     it('should transmit a request to Kuzzle and its response back to the client', () => {
