@@ -310,6 +310,9 @@ describe('Test: service/Broker', function () {
       broker.context = {
         clientConnectionStore: {
           getAll: sinon.spy()
+        },
+        backendHandler: {
+          addBackend: sinon.stub()
         }
       };
 
@@ -357,26 +360,6 @@ describe('Test: service/Broker', function () {
     broker.context = dummyContext;
     broker.handleBackendRegistration(dummyBackend);
 
-    should(dummyContext.backendHandler.addBackend.calledWith(dummyBackend)).be.true();
-  });
-
-  it('method handleBackendRegistration should postpone registration of a backend if its HTTP port is unavailable', () => {
-    var
-      dummyContext = {
-        backendHandler: {addBackend: sinon.stub()}
-      },
-      dummyBackend = {
-        httpPort: false
-      },
-      broker = new Broker();
-
-    broker.context = dummyContext;
-    broker.handleBackendRegistration(dummyBackend);
-
-    should(dummyContext.backendHandler.addBackend.called).be.false();
-    should(dummyBackend.httpPortCallback).be.a.Function();
-
-    dummyBackend.httpPortCallback();
     should(dummyContext.backendHandler.addBackend.calledWith(dummyBackend)).be.true();
   });
 

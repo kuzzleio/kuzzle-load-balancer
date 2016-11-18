@@ -10,6 +10,6 @@ try {
   proxy.start();
 }
 catch (error) {
-  console.error(error);
+  console.dir(error.stack, {depth: null});
   process.exit(1);
 }

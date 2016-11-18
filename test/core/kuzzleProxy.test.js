@@ -169,7 +169,7 @@ describe('lib/core/KuzzleProxy', () => {
 
       should(proxy.httpProxy.init)
         .be.calledOnce()
-        .be.calledWith(proxy.context, proxy.config.http.port, proxy.config.http.host);
+        .be.calledWith(proxy.context, proxy.config);
     });
   });
 
