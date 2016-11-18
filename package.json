@@ -5,7 +5,6 @@
   "main": "lib/index.js",
   "scripts": {
     "start": "node index.js",
-    "plugins": "node ./plugins.js",
     "lint": "eslint --max-warnings=0 ./lib ./test",
     "test": "npm run --silent lint && npm run unit-testing --coverage",
     "unit-testing": "istanbul test _mocha",
@@ -27,6 +26,7 @@
     "bufferutil": "^1.2.1",
     "bytes": "^2.4.0",
     "cli-color": "^1.1.0",
+    "compare-versions": "^3.0.0",
     "kuzzle-common-objects": "1.0.4",
     "lodash": "^4.14.1",
     "node-uuid": "^1.4.7",
@@ -43,6 +43,7 @@
     "mocha": "3.1.0",
     "rewire": "2.5.2",
     "should": "11.1.0",
+    "should-sinon": "0.0.5",
     "sinon": "1.17.6",
     "sinon-as-promised": "^4.0.2"
   },
