@@ -1,6 +1,6 @@
 'use strict';
 
-var
+const
   should = require('should'),
   bytes = require('bytes'),
   proxyquire = require('proxyquire'),
@@ -48,15 +48,10 @@ describe('Test: service/HttpProxy', function () {
 
     // Message sent to Kuzzle
     message = {
-      data: {
-        request: {
-          url: requestStub.url,
-          method: requestStub.method,
-          headers: requestStub.headers,
-          content: ''
-        }
-      },
-      room: 'httpRequest'
+      url: requestStub.url,
+      method: requestStub.method,
+      headers: requestStub.headers,
+      content: ''
     };
 
 
@@ -113,8 +108,7 @@ describe('Test: service/HttpProxy', function () {
       messageHandler(requestStub, responseStub);
       requestStub.emit('end');
 
-
-      should(context.broker.brokerCallback.calledWith(sinon.match(message), sinon.match.func)).be.true();
+      should(context.broker.brokerCallback.calledWith('httpRequest', sinon.match(message), sinon.match.func)).be.true();
 
       should(responseStub.writeHead.calledWithMatch(1234, {
         'Content-Type': 'type',
@@ -135,7 +129,7 @@ describe('Test: service/HttpProxy', function () {
       messageHandler(requestStub, responseStub);
       requestStub.emit('end');
 
-      should(context.broker.brokerCallback.calledWith(sinon.match(message), sinon.match.func)).be.true();
+      should(context.broker.brokerCallback.calledWith('httpRequest', sinon.match(message), sinon.match.func)).be.true();
 
       should(responseStub.writeHead.calledWithMatch(error.status, {
         'Content-Type': 'application/json',
@@ -169,7 +163,7 @@ describe('Test: service/HttpProxy', function () {
         })
       };
 
-      message.data.request.content = 'foobarbaz';
+      message.content = 'foobarbaz';
 
       messageHandler(requestStub, responseStub);
       requestStub.emit('data', 'foo');
@@ -177,7 +171,7 @@ describe('Test: service/HttpProxy', function () {
       requestStub.emit('data', 'baz');
       requestStub.emit('end');
 
-      should(context.broker.brokerCallback.calledWith(sinon.match(message), sinon.match.func)).be.true();
+      should(context.broker.brokerCallback.calledWith('httpRequest', sinon.match(message), sinon.match.func)).be.true();
 
       should(responseStub.writeHead.calledWithMatch(1234, {
         'Content-Type': 'type',
@@ -199,7 +193,7 @@ describe('Test: service/HttpProxy', function () {
 
       httpProxy.maxRequestSize = 3;
 
-      message.data.request.content = 'foobarbaz';
+      message.content = 'foobarbaz';
 
       messageHandler(requestStub, responseStub);
       requestStub.emit('data', 'foo');

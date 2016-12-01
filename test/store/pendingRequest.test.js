@@ -1,34 +1,24 @@
-var
+'use strict';
+
+const
   should = require('should'),
-  sandbox = require('sinon').sandbox.create(),
+  sinon = require('sinon'),
   rewire = require('rewire'),
   PendingRequest = rewire('../../lib/store/PendingRequest'),
-  InternalError = require('kuzzle-common-objects').Errors.internalError;
+  PendingItem = require('../../lib/store/PendingItem'),
+  InternalError = require('kuzzle-common-objects').errors.InternalError;
 
 describe('Test: store/PendingRequest', function () {
-  var
+  let
+    sandbox = sinon.sandbox.create(),
     spyClearTimeout,
-    spySetTimeout,
-    dummyPendingExist = {
-      message: {data: {connection: {}, request: {requestId: 'exists'}}},
-      timeout: 'timeoutDummyPendingExist',
-      callback: null
-    },
-    dummyPendingDoesNotExist = {
-      message: {data: {connection: {}, request: {requestId: 'doesnotexist'}}},
-      timeout: 'timeoutDummyPendingDoesNotExist',
-      callback: null
-    },
-    dummyInvalidPending = {
-      message: {data: {connection: {}, notARequest: {notARequestId: 'invalid'}}},
-      timeout: 'timeoutDummyInvalidPending',
-      callback: null
-    };
+    spySetTimeout;
 
   beforeEach(() => {
     spyClearTimeout = sandbox.stub();
     spySetTimeout = sandbox.stub();
 
+    PendingRequest.__set__('setTimeout', spySetTimeout);
     PendingRequest.__set__('clearTimeout', spyClearTimeout);
   });
 
@@ -37,158 +27,91 @@ describe('Test: store/PendingRequest', function () {
   });
 
   it('constructor must initialize pending', () => {
-    var pendingRequest = new PendingRequest();
+    let pendingRequest = new PendingRequest(132);
 
     should(pendingRequest.pending).be.an.Object();
+    should(pendingRequest.backendTimeout).be.eql(132);
   });
 
-  // /!\ Biazed test, we do it first to avoid setTimeout overrides
-  it('method add creates a setTimeout that rejects the callback after a certain amount of time', (done) => {
-    var
-      pendingRequest = new PendingRequest(100),
-      dummyPendingWithCallback = {
-        message: {data: {connection: {}, request: {requestId: 'exists'}}},
-        timeout: 'timeoutDummyPendingExist',
-        callback: function (error) {
-          if (error) {
-            should(error).be.instanceOf(InternalError);
-            return done();
-          }
-
-          done(new Error('Promise unexpectedly resolved'));
-        }
-      };
-
-    pendingRequest.add(dummyPendingWithCallback);
-  });
-
-  it('method add must add an item to the pending', () => {
-    var
+  it('should add an item to the pending list', () => {
+    let
       pendingRequest = new PendingRequest(),
-      spyWithReturnTimeout = sandbox.spy(function () {
-        return dummyPendingExist.timeout;
-      });
+      cb = sinon.stub();
 
-    PendingRequest.__set__('setTimeout', spyWithReturnTimeout);
+    spySetTimeout.returns('foobar');
 
-    pendingRequest.add(dummyPendingExist);
+    pendingRequest.add({requestId: 'requestId'}, cb);
 
-    should(spyWithReturnTimeout.calledOnce).be.true();
-    should(pendingRequest.pending[dummyPendingExist.message.data.request.requestId]).be.deepEqual(dummyPendingExist);
+    should(spySetTimeout.calledOnce).be.true();
+    should(pendingRequest.pending.requestId).be.instanceOf(PendingItem);
+    should(pendingRequest.pending.requestId.timeout).be.eql('foobar');
+    should(pendingRequest.pending.requestId.callback).be.eql(cb);
   });
 
-  it('method add must not add an item to the pending if invalid', () => {
-    var pendingRequest = new PendingRequest();
+  it('should resolve an existing pending item', () => {
+    let
+      pendingRequest = new PendingRequest(),
+      cb = sinon.stub();
 
-    pendingRequest.add(dummyInvalidPending);
+    pendingRequest.add({requestId: 'requestId'}, cb);
+    pendingRequest.resolve('requestId', 'foo', 'bar');
 
-    should(spySetTimeout.calledOnce).be.false();
-    should(Object.keys(pendingRequest.pending).length).be.eql(0);
+    should(pendingRequest.pending).be.empty();
+    should(cb.calledWith('foo', 'bar')).be.true();
   });
 
-  it('method getByRequestId must return an item to the pending if it exists', () => {
-    var pendingRequest = new PendingRequest();
+  it('should not resolve existing pending items if an unknown id is provided', () => {
+    let
+      pendingRequest = new PendingRequest(),
+      cb = sinon.stub();
 
-    pendingRequest.pending = {[dummyPendingExist.message.data.request.requestId]: dummyPendingExist};
+    pendingRequest.add({requestId: 'requestId'}, cb);
+    pendingRequest.resolve('foobar', 'foo', 'bar');
 
-    should(pendingRequest.getByRequestId(dummyPendingExist.message.data.request.requestId)).be.deepEqual(dummyPendingExist);
+    should(pendingRequest.pending.requestId).be.instanceOf(PendingItem);
+    should(cb.called).be.false();
   });
 
-  it('method getByRequestId must return undefined if an item does not exist in pending', () => {
-    var pendingRequest = new PendingRequest();
+  it('should abort all existing pending items when asked to', () => {
+    let
+      pendingRequest = new PendingRequest(),
+      cb = sinon.stub(),
+      cb2 = sinon.stub(),
+      error = new Error('foobar');
 
-    pendingRequest.pending = {[dummyPendingExist.message.data.request.requestId]: dummyPendingExist};
+    spySetTimeout.returns('foobar');
 
-    should(pendingRequest.getByRequestId(dummyPendingDoesNotExist.message.data.request.requestId)).be.undefined();
+    pendingRequest.add({requestId: 'requestId'}, cb);
+    pendingRequest.add({requestId: 'requestId2'}, cb2);
+
+    pendingRequest.abortAll(error);
+
+    should(pendingRequest.pending).be.empty();
+    should(spyClearTimeout.calledTwice).be.true();
+    should(spyClearTimeout.alwaysCalledWith('foobar')).be.true();
+    should(cb.calledWith(error)).be.true();
+    should(cb2.calledWith(error)).be.true();
   });
 
-  it('method existsByRequestId must return true if the item exists', () => {
-    var pendingRequest = new PendingRequest();
+  it('should timeout an existing pending item when no response has been received in time', () => {
+    let
+      pendingRequest,
+      cb = sinon.stub(),
+      clock = sinon.useFakeTimers();
 
-    pendingRequest.pending = {[dummyPendingExist.message.data.request.requestId]: dummyPendingExist};
+    PendingRequest.__set__('setTimeout', setTimeout);
 
-    should(pendingRequest.existsByRequestId(dummyPendingExist.message.data.request.requestId)).be.true();
-  });
+    pendingRequest = new PendingRequest(10);
 
-  it('method existsByRequestId must return false if the item does not exist', () => {
-    var pendingRequest = new PendingRequest();
+    pendingRequest.add({requestId: 'requestId'}, cb);
 
-    pendingRequest.pending = {[dummyPendingExist.message.data.request.requestId]: dummyPendingExist};
+    clock.tick(10);
 
-    should(pendingRequest.existsByRequestId(dummyPendingDoesNotExist.message.data.request.requestId)).be.false();
-  });
+    should(cb.called).be.true();
+    should(cb.firstCall.args.length).be.eql(1);
+    should(cb.firstCall.args[0]).be.instanceOf(InternalError);
+    should(cb.firstCall.args[0].message).startWith('Kuzzle was too long to respond');
 
-  it('method removeByRequestId must remove an item from pending if it exist', () => {
-    var pendingRequest = new PendingRequest();
-
-    pendingRequest.pending = {[dummyPendingExist.message.data.request.requestId]: dummyPendingExist};
-
-    pendingRequest.removeByRequestId(dummyPendingExist.message.data.request.requestId);
-
-    should(spyClearTimeout.calledWith('timeoutDummyPendingExist')).be.true();
-    should(Object.keys(pendingRequest.pending).length).be.eql(0);
-  });
-
-  it('method removeByRequestId must not remove an item from pending if it does not exist', () => {
-    var pendingRequest = new PendingRequest();
-
-    pendingRequest.pending = {[dummyPendingExist.message.data.request.requestId]: dummyPendingExist};
-
-    pendingRequest.removeByRequestId(dummyPendingDoesNotExist.message.data.request.requestId);
-
-    should(spyClearTimeout.calledWith('timeoutDummyPendingDoesNotExist')).be.false();
-    should(Object.keys(pendingRequest.pending).length).be.eql(1);
-  });
-
-  it('method remove must remove an item from pending if it exist', () => {
-    var pendingRequest = new PendingRequest();
-
-    pendingRequest.pending = {[dummyPendingExist.message.data.request.requestId]: dummyPendingExist};
-
-    pendingRequest.remove(dummyPendingExist);
-
-    should(spyClearTimeout.calledWith('timeoutDummyPendingExist')).be.true();
-    should(Object.keys(pendingRequest.pending).length).be.eql(0);
-  });
-
-  it('method remove must not remove an item from pending if it does not exist', () => {
-    var pendingRequest = new PendingRequest();
-
-    pendingRequest.pending = {[dummyPendingExist.message.data.request.requestId]: dummyPendingExist};
-
-    pendingRequest.remove(dummyPendingDoesNotExist);
-
-    should(spyClearTimeout.calledWith('timeoutDummyPendingDoesNotExist')).be.false();
-    should(Object.keys(pendingRequest.pending).length).be.eql(1);
-  });
-
-  it('method remove must not remove an item from pending if argument is invalid', () => {
-    var pendingRequest = new PendingRequest();
-
-    pendingRequest.pending = {[dummyPendingExist.message.data.request.requestId]: dummyPendingExist};
-
-    pendingRequest.remove(dummyInvalidPending);
-
-    should(spyClearTimeout.calledWith('timeoutDummyInvalidPending')).be.false();
-    should(Object.keys(pendingRequest.pending).length).be.eql(1);
-  });
-
-  it('method clear must empty the pending', () => {
-    var pendingRequest = new PendingRequest();
-
-    pendingRequest.pending = {[dummyPendingExist.message.data.request.requestId]: dummyPendingExist};
-
-    pendingRequest.clear();
-
-    should(spyClearTimeout.calledWith('timeoutDummyPendingExist')).be.true();
-    should(Object.keys(pendingRequest.pending).length).be.eql(0);
-  });
-
-  it('method getAll must return the pending', () => {
-    var pendingRequest = new PendingRequest();
-
-    pendingRequest.pending = {[dummyPendingExist.message.data.request.requestId]: dummyPendingExist};
-
-    should(pendingRequest.getAll()).be.deepEqual(pendingRequest.pending);
+    clock.restore();
   });
 });
