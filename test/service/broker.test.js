@@ -108,7 +108,7 @@ describe('Test: service/Broker', function () {
   });
 
   describe('#initiateServer', () => {
-    var
+    let
       broker;
 
     beforeEach(() => {
@@ -162,7 +162,7 @@ describe('Test: service/Broker', function () {
     });
 
     it('should create a unix socket websocket server and handle EADDRINUSE errors', () => {
-      var
+      let
         serverErrorCB,
         netConnectCB,
         netErrorCB;
@@ -203,6 +203,7 @@ describe('Test: service/Broker', function () {
 
       should(serverMock.listen)
         .be.calledOnce();
+
       let initCB = serverMock.listen.firstCall.args[1];
 
       netErrorCB({code: 'ECONNREFUSED'});
@@ -232,7 +233,7 @@ describe('Test: service/Broker', function () {
 
   describe('#onConnection', () => {
     it('method onConnection plays client connections properly', (done) => {
-      var
+      let
         broker = new Broker(),
         dummySocket = {dummy: 'socket', upgradeReq: {connection: {remoteAddress: dummyAddress}}},
         getAllSpy = sandbox
@@ -267,7 +268,7 @@ describe('Test: service/Broker', function () {
     });
 
     it('method onConnection must catch an error when it happens', (done) => {
-      var
+      let
         broker = new Broker(),
         dummySocket = {dummy: 'socket', upgradeReq: {connection: {remoteAddress: dummyAddress}}},
         getAllSpy = sandbox
@@ -299,7 +300,7 @@ describe('Test: service/Broker', function () {
     });
 
     it('should log new connections', () => {
-      var
+      let
         broker = new Broker();
 
       broker.config = {
@@ -323,7 +324,7 @@ describe('Test: service/Broker', function () {
   });
 
   it('method handleBackendRegistration must console error when an error has occured and close the socket', () => {
-    var
+    let
       broker = new Broker(),
       dummyBackend = {
         socket: {
@@ -346,7 +347,7 @@ describe('Test: service/Broker', function () {
   });
 
   it('method handleBackendRegistration should register a backend if its HTTP port is available', () => {
-    var
+    let
       dummyContext = {
         backendHandler: {addBackend: sinon.stub()}
       },
@@ -362,7 +363,7 @@ describe('Test: service/Broker', function () {
   });
 
   it('method onError write a console error and ends the process', () => {
-    var broker = new Broker();
+    let broker = new Broker();
 
     spyConsoleError.reset();
     processMock.exit.reset();
@@ -376,7 +377,7 @@ describe('Test: service/Broker', function () {
   });
 
   it('method brokerCallback rejects requests if no backend is available', () => {
-    var
+    let
       broker = new Broker(),
       dummyCallback = sandbox.spy(),
       dummyRoom = 'request',
@@ -392,7 +393,7 @@ describe('Test: service/Broker', function () {
   });
 
   it('method brokerCallback adds a request to the store if no backend', () => {
-    var
+    let
       broker = new Broker(),
       dummyCallback = sandbox.spy(),
       dummyRoom = 'request',
@@ -411,7 +412,7 @@ describe('Test: service/Broker', function () {
   });
 
   it('method addClientConnection adds the client to the store and broadcasts the intel to all backends', () => {
-    var
+    let
       broker = new Broker(),
       dummyConnection = new RequestContext({connectionId: 'a connection'}),
       broadcastSpy = sandbox.stub(Broker.prototype, 'broadcastMessage'),
@@ -427,7 +428,7 @@ describe('Test: service/Broker', function () {
   });
 
   it('method removeClientConnection removes the client from the store and broadcasts the intel to all backends', () => {
-    var
+    let
       broker = new Broker(),
       dummyConnection = new RequestContext({connectionId: 'a connection'}),
       broadcastSpy = sandbox.stub(Broker.prototype, 'broadcastMessage'),
@@ -440,5 +441,27 @@ describe('Test: service/Broker', function () {
     should(broadcastSpy.calledWith('disconnect', dummyConnection)).be.true();
     should(dummyContext.clientConnectionStore.remove.calledOnce).be.true();
     should(dummyContext.clientConnectionStore.remove.calledWith(dummyConnection)).be.true();
+  });
+
+  it('should broadcast a message to all registered backends', () => {
+    let
+      broker = new Broker(),
+      sendRawStub = sinon.stub(),
+      dummyContext = {
+        backendHandler: {
+          getAllBackends: sinon.stub().returns([
+            { sendRaw: sendRawStub},
+            { sendRaw: sendRawStub},
+            { sendRaw: sendRawStub}
+          ])
+        }
+      };
+
+    broker.context = dummyContext;
+
+    broker.broadcastMessage('room', 'data');
+
+    should(sendRawStub.callCount).be.eql(3);
+    should(sendRawStub.alwaysCalledWith('room', 'data')).be.true();
   });
 });
