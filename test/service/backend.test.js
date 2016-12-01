@@ -85,7 +85,7 @@ describe('Test: service/Backend', function () {
 
       should(spyConsoleError)
         .be.calledOnce()
-        .be.calledWith('Bad message received from the backend : unexpected; Reason : SyntaxError: Unexpected token u');
+        .be.calledWith('Bad message received from the backend : unexpected; Reason: SyntaxError: Unexpected token u');
     });
 
     it('message room "response" must call the promise resolution if message is ok', () => {
@@ -430,7 +430,7 @@ describe('Test: service/Backend', function () {
     backend.onConnectionError(error);
 
     should(spyConsoleError.calledOnce).be.true();
-    should(spyConsoleError.calledWith(`Connection error with backend ${dummyAddress}; Reason :`, error)).be.true();
+    should(spyConsoleError.calledWith(`Connection error with backend ${dummyAddress}; Reason:`, error)).be.true();
     should(abortAllStub.calledOnce).be.true();
     should(abortAllStub.calledWithMatch(InternalError));
     should(removeBackendStub.calledOnce).be.true();
