@@ -443,15 +443,16 @@ describe('Test: service/Backend', function () {
       backend = initBackend(dummyContext),
       addStub = sandbox.stub(backend.backendRequestStore, 'add'),
       data = {message: 'a message'},
+      id = 'id',
       cb = function () {},
       room = 'room';
 
     backend.socket.send = sandbox.stub();
 
-    backend.send(room, data, cb);
+    backend.send(room, id, data, cb);
 
     should(addStub.calledOnce).be.true();
-    should(addStub.calledWith(data, cb)).be.true();
+    should(addStub.calledWith(id, data, cb)).be.true();
     should(backend.socket.send.calledOnce).be.true();
     should(backend.socket.send.calledWith(JSON.stringify({room, data}))).be.true();
   });

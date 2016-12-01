@@ -40,12 +40,12 @@ describe('Test: store/PendingRequest', function () {
 
     spySetTimeout.returns('foobar');
 
-    pendingRequest.add({requestId: 'requestId'}, cb);
+    pendingRequest.add('id', {foo: 'bar'}, cb);
 
     should(spySetTimeout.calledOnce).be.true();
-    should(pendingRequest.pending.requestId).be.instanceOf(PendingItem);
-    should(pendingRequest.pending.requestId.timeout).be.eql('foobar');
-    should(pendingRequest.pending.requestId.callback).be.eql(cb);
+    should(pendingRequest.pending.id).be.instanceOf(PendingItem);
+    should(pendingRequest.pending.id.timeout).be.eql('foobar');
+    should(pendingRequest.pending.id.callback).be.eql(cb);
   });
 
   it('should resolve an existing pending item', () => {
@@ -53,8 +53,8 @@ describe('Test: store/PendingRequest', function () {
       pendingRequest = new PendingRequest(),
       cb = sinon.stub();
 
-    pendingRequest.add({requestId: 'requestId'}, cb);
-    pendingRequest.resolve('requestId', 'foo', 'bar');
+    pendingRequest.add('id', {foo: 'bar'}, cb);
+    pendingRequest.resolve('id', 'foo', 'bar');
 
     should(pendingRequest.pending).be.empty();
     should(cb.calledWith('foo', 'bar')).be.true();
@@ -65,10 +65,10 @@ describe('Test: store/PendingRequest', function () {
       pendingRequest = new PendingRequest(),
       cb = sinon.stub();
 
-    pendingRequest.add({requestId: 'requestId'}, cb);
+    pendingRequest.add('id', {foo: 'bar'}, cb);
     pendingRequest.resolve('foobar', 'foo', 'bar');
 
-    should(pendingRequest.pending.requestId).be.instanceOf(PendingItem);
+    should(pendingRequest.pending.id).be.instanceOf(PendingItem);
     should(cb.called).be.false();
   });
 
@@ -81,8 +81,8 @@ describe('Test: store/PendingRequest', function () {
 
     spySetTimeout.returns('foobar');
 
-    pendingRequest.add({requestId: 'requestId'}, cb);
-    pendingRequest.add({requestId: 'requestId2'}, cb2);
+    pendingRequest.add('id', {foo: 'bar'}, cb);
+    pendingRequest.add('id2', {foo: 'bar'}, cb2);
 
     pendingRequest.abortAll(error);
 
@@ -103,7 +103,7 @@ describe('Test: store/PendingRequest', function () {
 
     pendingRequest = new PendingRequest(10);
 
-    pendingRequest.add({requestId: 'requestId'}, cb);
+    pendingRequest.add('id', {foo: 'bar'}, cb);
 
     clock.tick(10);
 

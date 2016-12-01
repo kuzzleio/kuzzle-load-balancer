@@ -381,11 +381,12 @@ describe('Test: service/Broker', function () {
       broker = new Broker(),
       dummyCallback = sandbox.spy(),
       dummyRoom = 'request',
-      dummyMessage = {request: {requestId: 'a proper message'}},
+      dummyId = 'id',
+      dummyMessage = {foo: 'bar'},
       dummyContext = {backendHandler: {getBackend: sandbox.stub().returns(null)}};
 
     broker.context = dummyContext;
-    broker.brokerCallback(dummyRoom, dummyMessage, dummyCallback);
+    broker.brokerCallback(dummyRoom, dummyId, dummyMessage, dummyCallback);
 
     should(dummyContext.backendHandler.getBackend.calledOnce).be.true();
     should(dummyCallback.calledOnce).be.true();

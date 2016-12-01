@@ -92,7 +92,7 @@ describe('#Test: service/Router', function () {
     let
       dummyContext = {
         broker: {
-          brokerCallback: sandbox.spy((room, message, callback) => callback(null, message))
+          brokerCallback: sandbox.spy((room, id, message, callback) => callback(null, message))
         }
       },
       router = new Router(dummyContext),
@@ -105,7 +105,8 @@ describe('#Test: service/Router', function () {
         should(callbackSpy.calledOnce).be.true();
         should(dummyContext.broker.brokerCallback.calledOnce).be.true();
         should(dummyContext.broker.brokerCallback.args[0][0]).be.eql('request');
-        should(dummyContext.broker.brokerCallback.args[0][1]).be.eql(dummyRequest.serialize());
+        should(dummyContext.broker.brokerCallback.args[0][1]).be.eql(dummyRequest.id);
+        should(dummyContext.broker.brokerCallback.args[0][2]).be.eql(dummyRequest.serialize());
         should(response).be.eql(dummyRequest.serialize());
 
         done();
@@ -119,7 +120,7 @@ describe('#Test: service/Router', function () {
       dummyError = new Error('an Error'),
       dummyContext = {
         broker: {
-          brokerCallback: sandbox.spy((room, message, callback) => callback(dummyError))
+          brokerCallback: sandbox.spy((room, id, message, callback) => callback(dummyError))
         }
       },
       router = new Router(dummyContext),
@@ -132,7 +133,8 @@ describe('#Test: service/Router', function () {
         should(callbackSpy.calledOnce).be.true();
         should(dummyContext.broker.brokerCallback.calledOnce).be.true();
         should(dummyContext.broker.brokerCallback.args[0][0]).be.eql('request');
-        should(dummyContext.broker.brokerCallback.args[0][1]).match(dummyError);
+        should(dummyContext.broker.brokerCallback.args[0][1]).be.eql(dummyRequest.id);
+        should(dummyContext.broker.brokerCallback.args[0][2]).match(dummyError);
         should(response.error).be.instanceOf(InternalError);
         should(response.error.message).be.eql(dummyError.message);
         should(response.status).be.eql(500);

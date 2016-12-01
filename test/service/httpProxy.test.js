@@ -108,7 +108,7 @@ describe('Test: service/HttpProxy', function () {
       messageHandler(requestStub, responseStub);
       requestStub.emit('end');
 
-      should(context.broker.brokerCallback.calledWith('httpRequest', sinon.match(message), sinon.match.func)).be.true();
+      should(context.broker.brokerCallback.calledWith('httpRequest', sinon.match.string, sinon.match(message), sinon.match.func)).be.true();
 
       should(responseStub.writeHead.calledWithMatch(1234, {
         'Content-Type': 'type',
@@ -129,7 +129,7 @@ describe('Test: service/HttpProxy', function () {
       messageHandler(requestStub, responseStub);
       requestStub.emit('end');
 
-      should(context.broker.brokerCallback.calledWith('httpRequest', sinon.match(message), sinon.match.func)).be.true();
+      should(context.broker.brokerCallback.calledWith('httpRequest', sinon.match.string, sinon.match(message), sinon.match.func)).be.true();
 
       should(responseStub.writeHead.calledWithMatch(error.status, {
         'Content-Type': 'application/json',
@@ -171,7 +171,7 @@ describe('Test: service/HttpProxy', function () {
       requestStub.emit('data', 'baz');
       requestStub.emit('end');
 
-      should(context.broker.brokerCallback.calledWith('httpRequest', sinon.match(message), sinon.match.func)).be.true();
+      should(context.broker.brokerCallback.calledWith('httpRequest', sinon.match.string, sinon.match(message), sinon.match.func)).be.true();
 
       should(responseStub.writeHead.calledWithMatch(1234, {
         'Content-Type': 'type',
