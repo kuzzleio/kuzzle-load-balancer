@@ -97,11 +97,7 @@ describe('#Test: service/Router', function () {
       },
       router = new Router(dummyContext),
       dummyRequest = new Request({}),
-      callbackSpy = sandbox.spy((error, response) => {
-        if (error) {
-          done(error);
-        }
-
+      callbackSpy = sandbox.spy(response => {
         should(callbackSpy.calledOnce).be.true();
         should(dummyContext.broker.brokerCallback.calledOnce).be.true();
         should(dummyContext.broker.brokerCallback.args[0][0]).be.eql('request');
@@ -125,11 +121,7 @@ describe('#Test: service/Router', function () {
       },
       router = new Router(dummyContext),
       dummyRequest = new Request({}),
-      callbackSpy = sandbox.spy((error, response) => {
-        if (error) {
-          done(error);
-        }
-
+      callbackSpy = sandbox.spy(response => {
         should(callbackSpy.calledOnce).be.true();
         should(dummyContext.broker.brokerCallback.calledOnce).be.true();
         should(dummyContext.broker.brokerCallback.args[0][0]).be.eql('request');
