@@ -119,7 +119,8 @@ describe('Test: service/HttpProxy', function () {
       should(responseStub.writeHead.calledWithMatch(1234, {
         'Content-Type': 'type',
         'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Headers': 'X-Requested-With'
+        'Access-Control-Allow-Methods' : 'GET,POST,PUT,DELETE,OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With'
       })).be.true();
 
       should(responseStub.end.calledWith('response')).be.true();
@@ -140,7 +141,8 @@ describe('Test: service/HttpProxy', function () {
       should(responseStub.writeHead.calledWithMatch(error.status, {
         'Content-Type': 'application/json',
         'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Headers': 'X-Requested-With'
+        'Access-Control-Allow-Methods' : 'GET,POST,PUT,DELETE,OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With'
       })).be.true();
 
       should(responseStub.end.calledWith(JSON.stringify(error))).be.true();
@@ -153,7 +155,8 @@ describe('Test: service/HttpProxy', function () {
       should(responseStub.writeHead.calledWithMatch(413, {
         'Content-Type': 'application/json',
         'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Headers': 'X-Requested-With'
+        'Access-Control-Allow-Methods' : 'GET,POST,PUT,DELETE,OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With'
       })).be.true();
 
       should(requestStub.resume.calledOnce).be.true();
@@ -182,7 +185,8 @@ describe('Test: service/HttpProxy', function () {
       should(responseStub.writeHead.calledWithMatch(1234, {
         'Content-Type': 'type',
         'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Headers': 'X-Requested-With'
+        'Access-Control-Allow-Methods' : 'GET,POST,PUT,DELETE,OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With'
       })).be.true();
 
       should(responseStub.end.calledWith('response')).be.true();
@@ -215,11 +219,26 @@ describe('Test: service/HttpProxy', function () {
       should(responseStub.writeHead.calledWithMatch(413, {
         'Content-Type': 'application/json',
         'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Headers': 'X-Requested-With'
+        'Access-Control-Allow-Methods' : 'GET,POST,PUT,DELETE,OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With'
       })).be.true();
 
       should(responseStub.end.firstCall.args[0]).startWith('{"status":413,"message":"Error: maximum HTTP request size exceeded","stack":');
 
+    });
+
+    it('should respond immediately when receiving an OPTIONS request', () => {
+      requestStub.method = 'OPTIONS';
+      messageHandler(requestStub, responseStub);
+
+      should(responseStub.writeHead.calledWithMatch(200, {
+        'Content-Type': 'text/html;charset=UTF-8',
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods' : 'GET,POST,PUT,DELETE,OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With'
+      })).be.true();
+
+      should(responseStub.end.firstCall.args.length).be.eql(0);
     });
   });
 });
