@@ -1,7 +1,7 @@
 -b
 -r should
 -r should-sinon
--r sinon-as-promised
+--no-exit
 --reporter spec
 --recursive
 --slow 2000

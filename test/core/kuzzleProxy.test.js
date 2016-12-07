@@ -2,6 +2,7 @@ var
   rewire = require('rewire'),
   should = require('should'),
   sinon = require('sinon'),
+  Promise = require('bluebird'),
   KuzzleProxy = rewire('../../lib/core/KuzzleProxy');
 
 describe('lib/core/KuzzleProxy', () => {
@@ -33,7 +34,7 @@ describe('lib/core/KuzzleProxy', () => {
       }),
       PluginPackage: sinon.spy(function () {
         this.needsInstall = sinon.stub().returns(true);   // eslint-disable-line no-invalid-this
-        this.install = sinon.stub.resolves((function () { return this; })()); // eslint-disable-line no-invalid-this
+        this.install = sinon.stub().returns(Promise.resolve((function () { return this; })())); // eslint-disable-line no-invalid-this
       })
     });
 
@@ -46,7 +47,7 @@ describe('lib/core/KuzzleProxy', () => {
 
   describe('#start', () => {
     it('should call proper methods in order', () => {
-      proxy.installPluginsIfNeeded = sinon.stub().resolves();
+      proxy.installPluginsIfNeeded = sinon.stub().returns(Promise.resolve());
       proxy.initPlugins = sinon.spy();
       proxy.initBroker = sinon.spy();
       proxy.initHttpProxy = sinon.spy();

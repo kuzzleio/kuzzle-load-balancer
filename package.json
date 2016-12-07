@@ -27,7 +27,7 @@
     "bytes": "^2.4.0",
     "cli-color": "^1.1.0",
     "compare-versions": "^3.0.0",
-    "kuzzle-common-objects": "1.0.4",
+    "kuzzle-common-objects": "2.0.0",
     "lodash": "^4.14.1",
     "uuid": "3.0.0",
     "proper-lockfile": "^2.0.0",
@@ -44,8 +44,7 @@
     "rewire": "2.5.2",
     "should": "11.1.0",
     "should-sinon": "0.0.5",
-    "sinon": "1.17.6",
-    "sinon-as-promised": "^4.0.2"
+    "sinon": "1.17.6"
   },
   "engines": {
     "node": ">= 4.3.1",
