@@ -32,6 +32,7 @@ describe('Test: service/HttpProxy', function () {
 
     // Response stub
     responseStub = {
+      setHeader: sinon.stub(),
       writeHead: sinon.stub(),
       end: sinon.stub()
     };
@@ -101,7 +102,12 @@ describe('Test: service/HttpProxy', function () {
         brokerCallback: sinon.stub().yields(null, {
           status: 1234,
           type: 'type',
-          response: 'response'
+          response: JSON.stringify({
+            headers: {
+              'X-Foo': 'bar'
+            },
+            result: 'result'
+          })
         })
       };
 
@@ -110,14 +116,21 @@ describe('Test: service/HttpProxy', function () {
 
       should(context.broker.brokerCallback.calledWith('httpRequest', sinon.match.string, sinon.match(message), sinon.match.func)).be.true();
 
-      should(responseStub.writeHead.calledWithMatch(1234, {
-        'Content-Type': 'type',
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods' : 'GET,POST,PUT,DELETE,OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With'
-      })).be.true();
+      should(responseStub.setHeader)
+        .be.calledWith('Content-Type', 'type')
+        .be.calledWith('Access-Control-Allow-Origin', '*')
+        .be.calledWith('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS')
+        .be.calledWith('Access-Control-Allow-Headers', 'Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With')
+        .be.calledWith('X-Foo', 'bar');
+      should(responseStub.writeHead)
+        .be.calledOnce()
+        .be.calledWith(1234);
 
-      should(responseStub.end.calledWith('response')).be.true();
+      should(responseStub.end)
+        .be.calledOnce()
+        .be.calledWith(JSON.stringify({
+          result: 'result'
+        }));
     });
 
     it('should forward a Kuzzle error to a client', () => {
@@ -176,14 +189,12 @@ describe('Test: service/HttpProxy', function () {
 
       should(context.broker.brokerCallback.calledWith('httpRequest', sinon.match.string, sinon.match(message), sinon.match.func)).be.true();
 
-      should(responseStub.writeHead.calledWithMatch(1234, {
-        'Content-Type': 'type',
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods' : 'GET,POST,PUT,DELETE,OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With'
-      })).be.true();
+      should(responseStub.writeHead)
+        .be.calledWithExactly(1234);
 
-      should(responseStub.end.calledWith('response')).be.true();
+      should(responseStub.end)
+        .be.calledOnce()
+        .be.calledWithExactly('response');
     });
 
     it('should respond with an error if the content size is too large', () => {
