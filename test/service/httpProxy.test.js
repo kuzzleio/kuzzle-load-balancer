@@ -102,12 +102,12 @@ describe('Test: service/HttpProxy', function () {
         brokerCallback: sinon.stub().yields(null, {
           status: 1234,
           type: 'type',
-          response: JSON.stringify({
+          response: {
             headers: {
               'X-Foo': 'bar'
             },
             result: 'result'
-          })
+          }
         })
       };
 
@@ -244,6 +244,26 @@ describe('Test: service/HttpProxy', function () {
       })).be.true();
 
       should(responseStub.end.firstCall.args.length).be.eql(0);
+    });
+
+    it('should prettify the output', () => {
+      context.broker = {
+        brokerCallback: sinon.stub().yields(null, {
+          status: 1234,
+          type: 'type',
+          response: {
+            foo: 'bar'
+          }
+        })
+      };
+
+      requestStub.url = 'url?pretty';
+      messageHandler(requestStub, responseStub);
+
+      requestStub.emit('end');
+
+      should(responseStub.end)
+        .be.calledWith(JSON.stringify({ foo: 'bar'}, undefined, 2));
     });
   });
 });
