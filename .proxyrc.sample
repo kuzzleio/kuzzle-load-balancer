@@ -47,13 +47,9 @@
   //   maxRequestSize: the size limit of a request. If it's a string, the
   //       value is passed to the "bytes" library (https://www.npmjs.com/package/bytes).
   //       If this is a number, then the value specifies the number of bytes.
-  //   accessControlAllowOrigin: sets the Access-Control-Allow-Origin header used to
-  //       send responses to the client
-  //       (see https://developer.mozilla.org/en-US/docs/Web/HTTP/Access_control_CORS)
   //   [host]:  ip on which the proxy should bind itself for http connections. Defaults to all interfaces
   "http": {
     "port": 7511,
-    "maxRequestSize": "1MB",
-    "accessControlAllowOrigin": "*"
+    "maxRequestSize": "1MB"
   }
 }

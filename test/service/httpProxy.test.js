@@ -117,10 +117,6 @@ describe('Test: service/HttpProxy', function () {
       should(context.broker.brokerCallback.calledWith('httpRequest', sinon.match.string, sinon.match(message), sinon.match.func)).be.true();
 
       should(responseStub.setHeader)
-        .be.calledWith('Content-Type', 'type')
-        .be.calledWith('Access-Control-Allow-Origin', '*')
-        .be.calledWith('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS')
-        .be.calledWith('Access-Control-Allow-Headers', 'Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With')
         .be.calledWith('X-Foo', 'bar');
       should(responseStub.writeHead)
         .be.calledOnce()
@@ -230,20 +226,6 @@ describe('Test: service/HttpProxy', function () {
 
       should(responseStub.end.firstCall.args[0]).startWith('{"status":413,"message":"Error: maximum HTTP request size exceeded","stack":');
 
-    });
-
-    it('should respond immediately when receiving an OPTIONS request', () => {
-      requestStub.method = 'OPTIONS';
-      messageHandler(requestStub, responseStub);
-
-      should(responseStub.writeHead.calledWithMatch(200, {
-        'Content-Type': 'text/html;charset=UTF-8',
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods' : 'GET,POST,PUT,DELETE,OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With'
-      })).be.true();
-
-      should(responseStub.end.firstCall.args.length).be.eql(0);
     });
 
     it('should prettify the output', () => {
