@@ -101,12 +101,16 @@ describe('Test: service/HttpProxy', function () {
       context.broker = {
         brokerCallback: sinon.stub().yields(null, {
           status: 1234,
-          type: 'type',
           response: {
+            raw: false,
+            content: {
+              controller: 'controller',
+              action: 'action',
+              result: 'result'
+            },
             headers: {
               'X-Foo': 'bar'
-            },
-            result: 'result'
+            }
           }
         })
       };
@@ -125,6 +129,8 @@ describe('Test: service/HttpProxy', function () {
       should(responseStub.end)
         .be.calledOnce()
         .be.calledWith(JSON.stringify({
+          controller: 'controller',
+          action: 'action',
           result: 'result'
         }));
     });
@@ -166,12 +172,18 @@ describe('Test: service/HttpProxy', function () {
       should(responseStub.end.firstCall.args[0]).startWith('{"status":413,"message":"Error: maximum HTTP request size exceeded","stack":');
     });
 
-    it('should forward to Kuzzle the request content if there is one', () => {
+    it('should forward to Kuzzle the raw content when appropriate', () => {
       context.broker = {
         brokerCallback: sinon.stub().yields(null, {
           status: 1234,
           type: 'type',
-          response: 'response'
+          response: {
+            raw: true,
+            content: 'content',
+            headers: {
+              'X-Foo': 'bar'
+            }
+          }
         })
       };
 
@@ -190,7 +202,40 @@ describe('Test: service/HttpProxy', function () {
 
       should(responseStub.end)
         .be.calledOnce()
-        .be.calledWithExactly('response');
+        .be.calledWithExactly(Buffer.from('content'));
+    });
+
+    it('should forward to Kuzzle a raw JSON object', () => {
+      context.broker = {
+        brokerCallback: sinon.stub().yields(null, {
+          status: 1234,
+          type: 'type',
+          response: {
+            raw: true,
+            content: {some: 'content'},
+            headers: {
+              'X-Foo': 'bar'
+            }
+          }
+        })
+      };
+
+      message.content = 'foobarbaz';
+
+      messageHandler(requestStub, responseStub);
+      requestStub.emit('data', 'foo');
+      requestStub.emit('data', 'bar');
+      requestStub.emit('data', 'baz');
+      requestStub.emit('end');
+
+      should(context.broker.brokerCallback.calledWith('httpRequest', sinon.match.string, sinon.match(message), sinon.match.func)).be.true();
+
+      should(responseStub.writeHead)
+        .be.calledWithExactly(1234);
+
+      should(responseStub.end)
+        .be.calledOnce()
+        .be.calledWithExactly(JSON.stringify({some: 'content'}));
     });
 
     it('should respond with an error if the content size is too large', () => {
@@ -234,7 +279,9 @@ describe('Test: service/HttpProxy', function () {
           status: 1234,
           type: 'type',
           response: {
-            foo: 'bar'
+            raw: false,
+            content: {foo: 'bar'},
+            headers: {}
           }
         })
       };
