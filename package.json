@@ -37,6 +37,7 @@
     "uuid": "3.0.0",
     "winston": "^2.3.0",
     "winston-elasticsearch": "^0.4.2",
+    "winston-syslog": "^1.2.5",
     "ws": "^1.1.1"
   },
   "devDependencies": {
