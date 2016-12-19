@@ -27,13 +27,13 @@
     "bytes": "^2.4.0",
     "cli-color": "^1.1.0",
     "compare-versions": "^3.0.0",
-    "kuzzle-common-objects": "2.0.1",
+    "kuzzle-common-objects": "2.1.0",
     "lodash": "^4.14.1",
-    "uuid": "3.0.0",
     "proper-lockfile": "^2.0.0",
     "proxyquire": "^1.7.10",
     "rc": "^1.1.6",
     "utf-8-validate": "^1.2.1",
+    "uuid": "3.0.0",
     "ws": "^1.1.1"
   },
   "devDependencies": {

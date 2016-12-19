@@ -85,7 +85,7 @@ describe('Test: service/Backend', function () {
 
       should(spyConsoleError)
         .be.calledOnce()
-        .be.calledWith('Bad message received from the backend : unexpected; Reason: SyntaxError: Unexpected token u');
+        .be.calledWithMatch('Bad message received from the backend : unexpected; Reason: SyntaxError: Unexpected token u');
     });
 
     it('message room "response" must call the promise resolution if message is ok', () => {
