@@ -55,12 +55,12 @@ describe('Test: core/Context', function () {
       RewiredContext = rewire('../../lib/core/Context'),
       context,
       fakeErrorObject = {
-        'fooBar': function () {}
+        'FooBar': function () {}
       };
 
-    RewiredContext.__set__('Errors', fakeErrorObject);
+    RewiredContext.__set__('errors', fakeErrorObject);
 
     context = new RewiredContext(BackendHandler, backendMode);
-    should(context.errors).have.property('FooBar', fakeErrorObject.fooBar);
+    should(context.errors).have.property('FooBar', fakeErrorObject.FooBar);
   });
 });

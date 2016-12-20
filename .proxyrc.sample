@@ -1,0 +1,55 @@
+{
+  // protocol plugins
+  //
+  // NB: each plugin key MUST match the name defined in its packages.json!
+  // plugin
+  //   version: version of the plugin to install
+  //   [path]: install plugin from local directory or tarball
+  //   [url]: install plugin from a remote location (git url, remote tarball)
+  //   config: the plugin configuration
+  "protocolPlugins": {
+    "kuzzle-plugin-websocket": {
+      "version": "1.0.7",
+      "activated": true,
+      "config": {
+        "port": 7513,
+        "room": "kuzzle"
+      }
+    },
+    "kuzzle-plugin-socketio": {
+      "version": "2.1.0",
+      "activated": true,
+      "config": {
+        "port": 7512,
+        "room": "kuzzle"
+      }
+    }
+  },
+  // backend
+  //
+  // configuration of the communication channel between the proxy and Kuzzle.
+  // by default, if bound to *:7331
+  // options:
+  //   [port]:    TCP port to listen to for incoming connections from Kuzzle
+  //   [host]:    ip on which the proxy should bind itself. Defaults to all interfaces
+  //   [socket]:  use a unix socket as transport
+  // NB: Either port or socket must be defined
+  "backend": {
+    "port": 7331,
+    "mode": "standard",
+    "timeout": 10000
+  },
+  // http proxy
+  //
+  // configuration of the http proxy server for Kuzzle
+  // options
+  //   port:    TCP port to listen to
+  //   maxRequestSize: the size limit of a request. If it's a string, the
+  //       value is passed to the "bytes" library (https://www.npmjs.com/package/bytes).
+  //       If this is a number, then the value specifies the number of bytes.
+  //   [host]:  ip on which the proxy should bind itself for http connections. Defaults to all interfaces
+  "http": {
+    "port": 7511,
+    "maxRequestSize": "1MB"
+  }
+}

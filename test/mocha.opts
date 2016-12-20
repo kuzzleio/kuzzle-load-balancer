@@ -1,5 +1,7 @@
 -b
---require should
+-r should
+-r should-sinon
+--no-exit
 --reporter spec
 --recursive
 --slow 2000
