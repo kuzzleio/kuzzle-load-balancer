@@ -294,7 +294,7 @@ describe('lib/core/KuzzleProxy', () => {
         access: {
           info: sinon.spy()
         }
-      }
+      };
     });
 
     it('should trigger an warn log if no connection could be found', () => {
@@ -327,13 +327,13 @@ describe('lib/core/KuzzleProxy', () => {
           request,
           error,
           result
-      });
+        });
     });
 
     it('should output combined logs from an http request', () => {
       const
         connection = {
-          protocol: 'http',
+          protocol: 'HTTP/1.1',
           headers: {
             authorization: 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiJhZG1pbiIsImlhdCI6MTQ4MjE3MDQwNywiZXhwIjoxNDgyMTg0ODA3fQ.SmLTFuIPsVuA8Pgpf9XONW2RtxcHjQffthNZ5Er4L4s',
             referer: 'http://referer.com',
@@ -343,7 +343,11 @@ describe('lib/core/KuzzleProxy', () => {
         },
         request = {
           url: 'url',
-          method: 'METHOD'
+          method: 'METHOD',
+          data: {
+            index: 'index',
+            collection: 'collection'
+          }
         },
         result = {
           status: 'status'
@@ -357,7 +361,7 @@ describe('lib/core/KuzzleProxy', () => {
 
       should(proxy.loggers.access.info)
         .be.calledOnce()
-        .be.calledWithMatch(/^1.1.1.1 - admin \[\d\d\/[A-Z][a-z]{2}\/\d{4}:\d\d:\d\d:\d\d [+-]\d{4}] "METHOD url HTTP" status 19 "http:\/\/referer.com" "user agent"$/);
+        .be.calledWithMatch(/^1\.1\.1\.1 - admin \[\d\d\/[A-Z][a-z]{2}\/\d{4}:\d\d:\d\d:\d\d [+-]\d{4}] "METHOD url HTTP\/1\.1" status 9 "http:\/\/referer.com" "user agent"$/);
     });
 
     it('should use the error status in priority', () => {
@@ -393,14 +397,14 @@ describe('lib/core/KuzzleProxy', () => {
       proxy.logAccess(1, request, error, result);
       should(proxy.loggers.access.info)
         .be.calledOnce()
-        .be.calledWithMatch(/^2.2.2.2 - admin \[\d\d\/[A-Z][a-z]{2}\/\d{4}:\d\d:\d\d:\d\d [+-]\d{4}] "DO \/controller\/action\/index\/collection\/id WEBSOCKET" 500 19 "http:\/\/referer.com" "user agent"/)
+        .be.calledWithMatch(/^2\.2\.2\.2 - admin \[\d\d\/[A-Z][a-z]{2}\/\d{4}:\d\d:\d\d:\d\d [+-]\d{4}] "DO \/controller\/action\/index\/collection\/id WEBSOCKET" 500 9 "http:\/\/referer\.com" "user agent"/);
 
       error.status = 'ERR';
       proxy.logAccess(1, request, error, result);
       should(proxy.loggers.access.info)
         .be.calledTwice();
       should(proxy.loggers.access.info.secondCall.args[0])
-        .match(/^2.2.2.2 - admin \[\d\d\/[A-Z][a-z]{2}\/\d{4}:\d\d:\d\d:\d\d [+-]\d{4}] "DO \/controller\/action\/index\/collection\/id WEBSOCKET" ERR 19 "http:\/\/referer.com" "user agent"/)
+        .match(/^2\.2\.2\.2 - admin \[\d\d\/[A-Z][a-z]{2}\/\d{4}:\d\d:\d\d:\d\d [+-]\d{4}] "DO \/controller\/action\/index\/collection\/id WEBSOCKET" ERR 9 "http:\/\/referer\.com" "user agent"/);
     });
 
   });

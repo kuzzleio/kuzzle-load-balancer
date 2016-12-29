@@ -5,10 +5,7 @@ const
   should = require('should'),
   ClientConnection = require('../../lib/core/clientConnection'),
   Context = require('../../lib/core/Context'),
-  sinon = require('sinon'),
-  rewire = require('rewire'),
-  Request = require('kuzzle-common-objects').Request,
-  Router = require.main.require('lib/service/Router');
+  Request = require('kuzzle-common-objects').Request;
 
 describe('Test: core/Context', function () {
 
