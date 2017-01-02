@@ -105,6 +105,28 @@ describe('lib/core/KuzzleProxy', () => {
           );
         });
     });
+
+    it('should log and rethrow if an error occured', () => {
+      const error = new Error('test');
+
+      proxy.initPlugins = sinon.stub().throws(error);
+      proxy.initLogger = () => {
+        proxy.loggers.error = {
+          error: sinon.spy()
+        };
+      };
+
+      return proxy.start()
+        .then(() => {
+          should(1).be.exactly('this should not happen');
+        })
+        .catch(e => {
+          should(proxy.log.error)
+            .be.calledOnce()
+            .be.calledWith(e);
+        });
+
+    });
   });
 
   describe('#installPluginsIfNeeded', () => {
@@ -316,7 +338,7 @@ describe('lib/core/KuzzleProxy', () => {
         error = { foo: 'bar' },
         result = { foo: 'bar'};
 
-      proxy.clientConnectionStore.getByConnectionId = sinon.stub().returns(connection);
+      proxy.clientConnectionStore.get = sinon.stub().returns(connection);
       proxy.config.logs.accessLogFormat = 'logstash';
 
       proxy.logAccess(connection, request, error, result);
@@ -353,7 +375,7 @@ describe('lib/core/KuzzleProxy', () => {
           status: 'status'
         };
 
-      proxy.clientConnectionStore.getByConnectionId = sinon.stub().returns(connection);
+      proxy.clientConnectionStore.get = sinon.stub().returns(connection);
       proxy.config.logs.accessLogFormat = 'combined';
       proxy.config.logs.accessLogIpOffset = 1;
 
@@ -383,7 +405,8 @@ describe('lib/core/KuzzleProxy', () => {
             action: 'action',
             index: 'index',
             collection: 'collection',
-            _id: 'id'
+            _id: 'id',
+            foo: 'bar'
           }
         },
         error = new Error('test'),
@@ -392,21 +415,120 @@ describe('lib/core/KuzzleProxy', () => {
         };
 
       proxy.config.logs.accessLogFormat = 'combined';
-      proxy.clientConnectionStore.getByConnectionId = sinon.stub().returns(connection);
+      proxy.clientConnectionStore.get = sinon.stub().returns(connection);
 
       proxy.logAccess(1, request, error, result);
       should(proxy.loggers.access.info)
         .be.calledOnce()
-        .be.calledWithMatch(/^2\.2\.2\.2 - admin \[\d\d\/[A-Z][a-z]{2}\/\d{4}:\d\d:\d\d:\d\d [+-]\d{4}] "DO \/controller\/action\/index\/collection\/id WEBSOCKET" 500 9 "http:\/\/referer\.com" "user agent"/);
+        .be.calledWithMatch(/^2\.2\.2\.2 - admin \[\d\d\/[A-Z][a-z]{2}\/\d{4}:\d\d:\d\d:\d\d [+-]\d{4}] "DO \/controller\/action\/index\/collection\/id\?foo=bar WEBSOCKET" 500 9 "http:\/\/referer\.com" "user agent"/);
 
       error.status = 'ERR';
       proxy.logAccess(1, request, error, result);
       should(proxy.loggers.access.info)
         .be.calledTwice();
       should(proxy.loggers.access.info.secondCall.args[0])
-        .match(/^2\.2\.2\.2 - admin \[\d\d\/[A-Z][a-z]{2}\/\d{4}:\d\d:\d\d:\d\d [+-]\d{4}] "DO \/controller\/action\/index\/collection\/id WEBSOCKET" ERR 9 "http:\/\/referer\.com" "user agent"/);
+        .match(/^2\.2\.2\.2 - admin \[\d\d\/[A-Z][a-z]{2}\/\d{4}:\d\d:\d\d:\d\d [+-]\d{4}] "DO \/controller\/action\/index\/collection\/id\?foo=bar WEBSOCKET" ERR 9 "http:\/\/referer\.com" "user agent"/);
     });
 
+    it('should extract the user from Basic auth header', () => {
+      const
+        connection = {
+          protocol: 'HTTP/1.0',
+          headers: {
+            authorization: 'Zm9vOmJhcg=='   // base64('foo:bar')
+          },
+          ips: ['1.1.1.1']
+        },
+        request = {
+          url: 'url',
+          method: 'GET'
+        },
+        result = {
+          raw: true,
+          content: 'test'
+        };
+
+      proxy.config.logs.accessLogFormat = 'combined';
+      proxy.clientConnectionStore.get = sinon.stub().returns(connection);
+
+      proxy.logAccess(1, request, undefined, result);
+
+      should(proxy.loggers.access.info)
+        .be.calledWithMatch(/^1\.1\.1\.1 - foo \[/);
+    });
+
+    it('should log a warning if the user could not be extracted from http headers', () => {
+      const
+        connection = {
+          protocol: 'HTTP/1.0',
+          headers: {
+            authorization: 'Bearer invalid'
+          },
+          ips: ['ip']
+        },
+        request = {
+          url: 'url',
+          method: 'GET'
+        },
+        result = {
+          raw: true,
+          status: 300,
+          content: 'test'
+        };
+
+      proxy.config.logs.accessLogFormat = 'combined';
+      proxy.clientConnectionStore.get = sinon.stub().returns(connection);
+      proxy.loggers.errors = {
+        warn: sinon.spy()
+      };
+
+      proxy.logAccess(1, request, undefined, result);
+
+      should(proxy.log.warn)
+        .be.calledOnce()
+        .be.calledWith('Unable to extract user from authorization header: Bearer invalid');
+      should(proxy.loggers.access.info)
+        .be.calledOnce()
+        .be.calledWithMatch(/^ip - - \[\d\d\/[A-Z][a-z]{2}\/\d{4}:\d\d:\d\d:\d\d [+-]\d{4}] "GET url HTTP\/1.0" 300 4 - -$/);
+    });
+
+    it('should log a warning if the user could not be extracted from jwt token', () => {
+      const
+        connection = {
+          protocol: 'websocket',
+          headers: {},
+          ips: ['ip']
+        },
+        request = {
+          data: {
+            timestamp: 'timestamp',
+            requestId: 'requestId',
+            jwt: 'invalid',
+            controller: 'controller',
+            action: 'action',
+            index: 'index',
+            collection: 'collection',
+            _id: 'id',
+            foo: 'bar'
+          }
+        },
+        result = {
+          raw: true,
+          content: 'test'
+        };
+
+      proxy.config.logs.accessLogFormat = 'combined';
+      proxy.clientConnectionStore.get = sinon.stub().returns(connection);
+      proxy.loggers.errors = {
+        warn: sinon.spy()
+      };
+
+      proxy.logAccess(1, request, undefined, result);
+
+      should(proxy.log.warn)
+        .be.calledOnce()
+        .be.calledWith('Unable to extract user from jwt token: invalid');
+    });
   });
 
 

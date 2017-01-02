@@ -1,11 +1,9 @@
 var
   should = require('should'),
-  EventEmitter = require('events'),
   rewire = require('rewire'),
   Backend = rewire('../../lib/service/Backend'),
   sinon = require('sinon'),
-  PendingRequest = require.main.require('lib/store/PendingRequest'),
-  InternalError = require('kuzzle-common-objects').errors.InternalError;
+  PendingRequest = require.main.require('lib/store/PendingRequest');
 
 describe('service/Backend', () => {
   let
@@ -19,7 +17,7 @@ describe('service/Backend', () => {
         removeBackend: sinon.spy()
       },
       clientConnectionStore: {
-        getByConnectionId: sinon.stub()
+        get: sinon.stub()
       },
       log: {
         error: sinon.spy(),
@@ -79,7 +77,7 @@ describe('service/Backend', () => {
 
       should(proxy.log.error)
         .be.calledOnce()
-        .be.calledWith('Room is not specified in message: {}')
+        .be.calledWith('Room is not specified in message: {}');
     });
 
     it('should log an error if the room is unknonwn', () => {
@@ -89,7 +87,7 @@ describe('service/Backend', () => {
 
       should(proxy.log.error)
         .be.calledOnce()
-        .be.calledWith('Unknown message type idontexist')
+        .be.calledWith('Unknown message type idontexist');
     });
 
     it('should call the proper action', () => {
@@ -202,7 +200,7 @@ describe('service/Backend', () => {
         },
         error = new Error('test');
 
-      proxy.clientConnectionStore.getByConnectionId.returns({
+      proxy.clientConnectionStore.get.returns({
         protocol: 'protocol'
       });
       proxy.pluginStore.getByProtocol.returns({
@@ -221,7 +219,7 @@ describe('service/Backend', () => {
         connectionId: 'id'
       };
 
-      proxy.clientConnectionStore.getByConnectionId.returns({
+      proxy.clientConnectionStore.get.returns({
         protocol: 'protocol'
       });
       backend.onMessageRooms.joinChannel(data);
@@ -243,7 +241,7 @@ describe('service/Backend', () => {
         },
         error = new Error('test');
 
-      proxy.clientConnectionStore.getByConnectionId.returns({
+      proxy.clientConnectionStore.get.returns({
         protocol: 'protocol'
       });
       proxy.pluginStore.getByProtocol.throws(error);
@@ -260,7 +258,7 @@ describe('service/Backend', () => {
         connectionId: 'id'
       };
 
-      proxy.clientConnectionStore.getByConnectionId.returns({
+      proxy.clientConnectionStore.get.returns({
         protocol: 'protocol'
       });
 
@@ -278,7 +276,7 @@ describe('service/Backend', () => {
         },
         error = new Error('test');
 
-      proxy.clientConnectionStore.getByConnectionId.returns({
+      proxy.clientConnectionStore.get.returns({
         protocol: 'protocol'
       });
       proxy.pluginStore.getByProtocol.throws(error);
@@ -295,7 +293,7 @@ describe('service/Backend', () => {
         connectionId: 'id'
       };
 
-      proxy.clientConnectionStore.getByConnectionId.returns({
+      proxy.clientConnectionStore.get.returns({
         protocol: 'protocol'
       });
 
@@ -313,7 +311,7 @@ describe('service/Backend', () => {
         },
         error = new Error('test');
 
-      proxy.clientConnectionStore.getByConnectionId.returns({
+      proxy.clientConnectionStore.get.returns({
         protocol: 'protocol'
       });
       proxy.pluginStore.plugins = {
@@ -337,7 +335,7 @@ describe('service/Backend', () => {
         connectionId: 'id'
       };
 
-      proxy.clientConnectionStore.getByConnectionId.returns({
+      proxy.clientConnectionStore.get.returns({
         protocol: 'protocol'
       });
       proxy.pluginStore.plugins = {

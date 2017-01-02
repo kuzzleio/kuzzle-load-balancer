@@ -31,4 +31,17 @@ describe('Test: core/Context', function () {
       .be.exactly(proxy.router);
   });
 
+  it('log getter should return the proxy error logger', () => {
+    const
+      proxy = {
+        loggers: {
+          error: {foo: 'bar'}
+        }
+      };
+
+    const context = new Context(proxy);
+    should(context.log)
+      .be.exactly(proxy.loggers.errors);
+  });
+
 });

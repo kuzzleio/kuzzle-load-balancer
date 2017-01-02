@@ -1,298 +1,321 @@
 'use strict';
 
 const
-  should = require('should'),
   bytes = require('bytes'),
-  proxyquire = require('proxyquire'),
-  EventEmitter = require('events'),
+  rewire = require('rewire'),
+  should = require('should'),
   sinon = require('sinon'),
-  Context = require.main.require('lib/core/Context');
+  HttpProxy = rewire('../../lib/service/HttpProxy');
 
-describe('Test: service/HttpProxy', function () {
+describe('/service/httpProxy', () => {
   let
-    HttpProxy,
-    httpProxy,
-    messageHandler,
-    httpServerStub,
-    requestStub,
-    responseStub,
-    message,
-    context = new Context(sinon.stub(), 'mode'),
-    config;
+    proxy,
+    reset,
+    httpProxy;
 
   beforeEach(() => {
-    // Config stub
-    config = {
-      http: {
-        port: 17511,
-        maxRequestSize: '1MB',
-        accessControlAllowOrigin: '*'
-      }
-    };
-
-    // Response stub
-    responseStub = {
-      setHeader: sinon.stub(),
-      writeHead: sinon.stub(),
-      end: sinon.stub()
-    };
-
-    // Request stub
-    requestStub = new EventEmitter();
-    Object.assign(requestStub, {
-      resume: sinon.stub(),
-      url: 'url',
-      method: 'method',
-      headers: { some: 'headers' }
-    });
-    sinon.spy(requestStub, 'removeAllListeners');
-
-    // Message sent to Kuzzle
-    message = {
-      url: requestStub.url,
-      method: requestStub.method,
-      headers: requestStub.headers,
-      content: ''
-    };
-
-
-    // HTTP server stub
-    httpServerStub = { listen: sinon.stub() };
-    HttpProxy = proxyquire('../../lib/service/HttpProxy', {
-      'http': {
-        createServer: function (handler) {
-          messageHandler = handler;
-          return httpServerStub;
+    proxy = {
+      broker: {
+        brokerCallback: sinon.spy()
+      },
+      clientConnectionStore: {
+        add: sinon.spy(),
+        remove: sinon.spy()
+      },
+      config: {
+        http: {
+          maxRequestSize: '100k',
+          port: 1234,
+          host: 'host'
         }
+      },
+      logAccess: sinon.spy()
+    };
+
+    reset = HttpProxy.__set__({
+      http: {
+        createServer: sinon.stub().returns({
+          listen: sinon.spy()
+        })
       }
     });
 
     httpProxy = new HttpProxy();
+    httpProxy.init(proxy);
+  });
+
+  afterEach(() => {
+    reset();
   });
 
   describe('#init', () => {
-    it('should throw if the maxRequestSize parameter is undefined', () => {
-      should(function () { httpProxy.init(context, {http: {port: 17511}}); }).throw();
+    it('should throw if an invalid maxRequestSize is given', () => {
+      proxy.config.http.maxRequestSize = 'invalid';
+
+      return should(() => httpProxy.init(proxy))
+        .throw('Invalid HTTP "maxRequestSize" parameter');
     });
 
-    it('should throw if the maxRequestSize parameter does not represent a size', () => {
-      should(function () { httpProxy.init(context, {http: {port: 17511, maxRequestSize: 'foobar'}}); }).throw();
+    it('should throw if no port is given', () => {
+      delete proxy.config.http.port;
+
+      return should(() => httpProxy.init(proxy))
+        .throw('No HTTP port configured.');
     });
 
-    it('should throw an error if there is no HTTP port configured', () => {
-      should(function () { httpProxy.init(context, {http: {maxRequestSize: '1MB'}}); }).throw();
-    });
+    it('should init the http server', () => {
+      const
+        sandbox = sinon.sandbox.create(),
+        request = {
+          url: 'url',
+          method: 'method',
+          headers: {
+            'x-forwarded-for': '2.2.2.2',
+            'x-foo': 'bar'
+          },
+          httpVersion: '1.1',
+          on: sandbox.spy(),
+          removeAllListeners: sandbox.stub().returnsThis(),
+          resume: sandbox.spy(),
+          socket: {
+            remoteAddress: '1.1.1.1'
+          }
+        },
+        response = {
+          writeHead: sandbox.spy()
+        };
 
-    it('should start a HTTP server', () => {
-      httpProxy.init(context, config);
+      HttpProxy.__with__({
+        replyWithError: sandbox.spy(),
+        sendRequest: sandbox.spy()
+      })(() => {
+        should(httpProxy.server.listen)
+          .be.calledOnce()
+          .be.calledWith(proxy.config.http.port, proxy.config.http.host);
 
-      should(httpProxy.maxRequestSize).be.eql(bytes.parse('1MB'));
-      should(httpProxy.server).be.eql(httpServerStub);
-      should(httpServerStub.listen.calledWith(17511)).be.true();
+        let cb = HttpProxy.__get__('http').createServer.firstCall.args[0];
+
+        // 1 - should respond with error if the request is too big
+        request.headers['content-length'] = 9999999999;
+
+        cb(request, response);
+
+        should(proxy.clientConnectionStore.add)
+          .be.calledOnce()
+          .be.calledWithMatch({
+            protocol: 'HTTP/1.1',
+            ips: ['2.2.2.2', '1.1.1.1'],
+            headers: {
+              'x-forwarded-for': '2.2.2.2',
+              'x-foo': 'bar'
+            }
+          });
+        should(request.resume)
+          .be.calledOnce();
+        should(HttpProxy.__get__('replyWithError'))
+          .be.calledOnce()
+          .be.calledWithMatch(/^[0-9a-w-]+$/, {url: request.url, method: request.method}, response, {message: 'Error: maximum HTTP request size exceeded'});
+
+        delete request.headers['content-length'];
+        sandbox.restore();
+
+        // 2 - should reply with error if the actual data sent exceeds the maxRequestSize
+        httpProxy.maxRequestSize = 2;
+        cb(request, response);
+
+        let dataCB = request.on.firstCall.args[1];
+
+        dataCB('a slightly too big chunk');
+        should(request.removeAllListeners)
+          .be.calledTwice();
+
+        should(HttpProxy.__get__('replyWithError'))
+          .be.calledWithMatch(/^[0-9a-z-]+$/, {url: request.url, method: request.method}, response, {message: 'Error: maximum HTTP request size exceeded'});
+
+        httpProxy.maxRequestSize = bytes.parse('100k');
+        sandbox.restore();
+
+        // 3 - valid request
+        cb(request, response);
+
+        dataCB = request.on.thirdCall.args[1];
+        dataCB('chunk1');
+        dataCB('chunk2');
+        dataCB('chunk3');
+
+        let endCB = request.on.getCall(3).args[1];
+        endCB();
+
+        should(HttpProxy.__get__('sendRequest'))
+          .be.calledOnce()
+          .be.calledWithMatch(/^[a-z0-9-]+$/, response, {
+            content: 'chunk1chunk2chunk3'
+          }
+        );
+      });
     });
   });
 
-  describe('#request handling', () => {
+  describe('#sendRequest', () => {
+    const sendRequest = HttpProxy.__get__('sendRequest');
+
+    let
+      payload,
+      res,
+      response;
+
     beforeEach(() => {
-      httpProxy.init(context, config);
-    });
-
-    it('should transmit a request to Kuzzle and its response back to the client', () => {
-      context.broker = {
-        brokerCallback: sinon.stub().yields(null, {
-          status: 1234,
-          response: {
-            raw: false,
-            content: {
-              controller: 'controller',
-              action: 'action',
-              result: 'result'
-            },
-            headers: {
-              'X-Foo': 'bar'
-            }
-          }
-        })
+      payload = {
+        requestId: 'requestId',
+        url: 'url?pretty'
+      };
+      response = {
+        end: sinon.spy(),
+        setHeader: sinon.spy(),
+        writeHead: sinon.spy()
       };
 
-      messageHandler(requestStub, responseStub);
-      requestStub.emit('end');
+      res = HttpProxy.__set__({
+        replyWithError: sinon.spy()
+      });
+    });
 
-      should(context.broker.brokerCallback.calledWith('httpRequest', sinon.match.string, sinon.match(message), sinon.match.func)).be.true();
+    afterEach(() => {
+      res();
+    });
 
-      should(responseStub.setHeader)
-        .be.calledWith('X-Foo', 'bar');
-      should(responseStub.writeHead)
+    it('should reply with error if one is received from Kuzzle', () => {
+      const error = new Error('error');
+
+      sendRequest('connectionId', response, payload);
+
+      should(proxy.broker.brokerCallback)
         .be.calledOnce()
-        .be.calledWith(1234);
+        .be.calledWith('httpRequest', payload.requestId, 'connectionId', payload);
 
-      should(responseStub.end)
+      const brokerCb = proxy.broker.brokerCallback.firstCall.args[4];
+
+      brokerCb(error);
+
+      should(HttpProxy.__get__('replyWithError'))
         .be.calledOnce()
-        .be.calledWith(JSON.stringify({
-          controller: 'controller',
-          action: 'action',
-          result: 'result'
-        }));
+        .be.calledWith('connectionId', payload, response, error);
     });
 
-    it('should forward a Kuzzle error to a client', () => {
-      let error = {status: 1324, message: 'error'};
-
-      context.broker = {
-        brokerCallback: sinon.stub().yields(error)
+    it('should output the result', () => {
+      const result = {
+        headers: {
+          'x-foo': 'bar'
+        },
+        status: 'status',
+        content: 'content'
       };
 
-      messageHandler(requestStub, responseStub);
-      requestStub.emit('end');
+      sendRequest('connectionId', response, payload);
+      const cb = proxy.broker.brokerCallback.firstCall.args[4];
 
-      should(context.broker.brokerCallback.calledWith('httpRequest', sinon.match.string, sinon.match(message), sinon.match.func)).be.true();
+      cb(undefined, result);
 
-      should(responseStub.writeHead.calledWithMatch(error.status, {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods' : 'GET,POST,PUT,DELETE,OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With'
-      })).be.true();
-
-      should(responseStub.end.calledWith(JSON.stringify(error))).be.true();
-    });
-
-    it('should respond with an error if the content length is too large', () => {
-      requestStub.headers['content-length'] = bytes.parse('2MB');
-      messageHandler(requestStub, responseStub);
-
-      should(responseStub.writeHead.calledWithMatch(413, {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods' : 'GET,POST,PUT,DELETE,OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With'
-      })).be.true();
-
-      should(requestStub.resume.calledOnce).be.true();
-      should(responseStub.end.firstCall.args[0]).startWith('{"status":413,"message":"Error: maximum HTTP request size exceeded","stack":');
-    });
-
-    it('should forward to Kuzzle the raw content when appropriate', () => {
-      context.broker = {
-        brokerCallback: sinon.stub().yields(null, {
-          status: 1234,
-          type: 'type',
-          response: {
-            raw: true,
-            content: 'content',
-            headers: {
-              'X-Foo': 'bar'
-            }
-          }
-        })
-      };
-
-      message.content = 'foobarbaz';
-
-      messageHandler(requestStub, responseStub);
-      requestStub.emit('data', 'foo');
-      requestStub.emit('data', 'bar');
-      requestStub.emit('data', 'baz');
-      requestStub.emit('end');
-
-      should(context.broker.brokerCallback.calledWith('httpRequest', sinon.match.string, sinon.match(message), sinon.match.func)).be.true();
-
-      should(responseStub.writeHead)
-        .be.calledWithExactly(1234);
-
-      should(responseStub.end)
+      should(response.setHeader)
         .be.calledOnce()
-        .be.calledWithExactly(Buffer.from('content'));
-    });
+        .be.calledWith('x-foo', 'bar');
 
-    it('should forward to Kuzzle a raw JSON object', () => {
-      context.broker = {
-        brokerCallback: sinon.stub().yields(null, {
-          status: 1234,
-          type: 'type',
-          response: {
-            raw: true,
-            content: {some: 'content'},
-            headers: {
-              'X-Foo': 'bar'
-            }
-          }
-        })
-      };
-
-      message.content = 'foobarbaz';
-
-      messageHandler(requestStub, responseStub);
-      requestStub.emit('data', 'foo');
-      requestStub.emit('data', 'bar');
-      requestStub.emit('data', 'baz');
-      requestStub.emit('end');
-
-      should(context.broker.brokerCallback.calledWith('httpRequest', sinon.match.string, sinon.match(message), sinon.match.func)).be.true();
-
-      should(responseStub.writeHead)
-        .be.calledWithExactly(1234);
-
-      should(responseStub.end)
+      should(response.writeHead)
         .be.calledOnce()
-        .be.calledWithExactly(JSON.stringify({some: 'content'}));
+        .be.calledWith('status');
+
+      should(response.end)
+        .be.calledOnce()
+        .be.calledWith(JSON.stringify(result, undefined, 2));
     });
 
-    it('should respond with an error if the content size is too large', () => {
-      context.broker = {
-        brokerCallback: sinon.stub().yields(null, {
-          status: 1234,
-          type: 'type',
-          response: 'response'
-        })
+    it('should output buffer raw result', () => {
+      const result = {
+        raw: true,
+        status: 'status',
+        content: new Buffer('test')
       };
 
-      httpProxy.maxRequestSize = 3;
+      sendRequest('connectionId', response, payload);
+      const cb = proxy.broker.brokerCallback.firstCall.args[4];
 
-      message.content = 'foobarbaz';
+      cb(undefined, result);
 
-      messageHandler(requestStub, responseStub);
-      requestStub.emit('data', 'foo');
-      requestStub.emit('data', 'bar');
-      requestStub.emit('data', 'baz');
-      requestStub.emit('end');
-
-      should(context.broker.brokerCallback.called).be.false();
-      should(requestStub.removeAllListeners.calledWith('data')).be.true();
-      should(requestStub.removeAllListeners.calledWith('end')).be.true();
-      should(requestStub.resume.called).be.true();
-
-      should(responseStub.writeHead.calledWithMatch(413, {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods' : 'GET,POST,PUT,DELETE,OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With'
-      })).be.true();
-
-      should(responseStub.end.firstCall.args[0]).startWith('{"status":413,"message":"Error: maximum HTTP request size exceeded","stack":');
-
+      should(response.end)
+        .be.calledOnce()
+        .be.calledWith(result.content);
     });
 
-    it('should prettify the output', () => {
-      context.broker = {
-        brokerCallback: sinon.stub().yields(null, {
-          status: 1234,
-          type: 'type',
-          response: {
-            raw: false,
-            content: {foo: 'bar'},
-            headers: {}
-          }
-        })
+    it('should output serialized JS objects marked as raw', () => {
+      const result = {
+        raw: true,
+        status: 'status',
+        content: [{foo: 'bar'}]
       };
 
-      requestStub.url = 'url?pretty';
-      messageHandler(requestStub, responseStub);
+      sendRequest('connectionId', response, payload);
+      const cb = proxy.broker.brokerCallback.firstCall.args[4];
 
-      requestStub.emit('end');
+      cb(undefined, result);
 
-      should(responseStub.end)
-        .be.calledWith(JSON.stringify({ foo: 'bar'}, undefined, 2));
+      should(response.end)
+        .be.calledWith(JSON.stringify(result.content));
+    });
+
+    it('should output scalar content as-is if marked as raw', () => {
+      const result = {
+        raw: true,
+        status: 'status',
+        content: 'content'
+      };
+
+      sendRequest('connectionId', response, payload);
+      const cb = proxy.broker.brokerCallback.firstCall.args[4];
+
+      cb(undefined, result);
+
+      should(response.end)
+        .be.calledOnce()
+        .be.calledWithExactly(result.content);
     });
   });
+
+  describe('#replyWithError', () => {
+    let
+      replyWithError,
+      response;
+
+    beforeEach(() => {
+      replyWithError = HttpProxy.__get__('replyWithError');
+      response = {
+        end: sinon.spy(),
+        writeHead: sinon.spy()
+      };
+    });
+
+    it('should log the access and reply with error', () => {
+      const error = new Error('test');
+      error.status = 'status';
+
+      replyWithError('connectionId', 'payload', response, error);
+
+      should(proxy.logAccess)
+        .be.calledOnce()
+        .be.calledWithMatch('connectionId', 'payload', error, {
+          raw: true,
+          content: JSON.stringify(error)
+        });
+
+      should(response.writeHead)
+        .be.calledOnce()
+        .be.calledWith('status', {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods' : 'GET,POST,PUT,DELETE,OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With'
+        });
+    });
+  });
+
 });
+

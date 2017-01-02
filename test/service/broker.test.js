@@ -5,8 +5,6 @@ const
   sinon = require('sinon'),
   rewire = require('rewire'),
   Broker = rewire('../../lib/service/Broker'),
-  EventEmitter = require('events'),
-  RequestContext = require('kuzzle-common-objects').models.RequestContext,
   ServiceUnavailableError = require('kuzzle-common-objects').errors.ServiceUnavailableError;
 
 describe('service/broker', () => {
@@ -186,6 +184,22 @@ describe('service/broker', () => {
         .be.calledWith('connection', 'foo')
         .be.calledWith('connection', 'bar');
     });
+
+    it('should log a different message depending on the connection type', () => {
+      broker.config.socket = false;
+
+      broker.onConnection({
+        upgradeReq: {
+          connection: {
+            remoteAddress: 'remoteAddress'
+          }
+        }
+      });
+
+      should(proxy.log.info)
+        .be.calledOnce()
+        .be.calledWith('A connection has been established with backend remoteAddress.');
+    });
   });
 
   describe('#handleBackendRegistration', () => {
@@ -215,6 +229,24 @@ describe('service/broker', () => {
       should(proxy.backendHandler.addBackend)
         .be.calledOnce()
         .be.calledWith(backend);
+    });
+
+    it('should log a different message depending on the connection type', () => {
+      const error = new Error('test');
+
+      delete broker.config.socket;
+      broker.config.port = 1234;
+
+      broker.handleBackendRegistration(error, {socket: {close: sinon.spy()}});
+      should(proxy.log.error)
+        .be.calledOnce()
+        .be.calledWith('Failed to init connection with backend %s:\n%s', '0.0.0.0:1234', error.stack);
+
+      broker.config.host = 'host';
+      broker.handleBackendRegistration(error, {socket: {close: sinon.spy()}});
+      should(proxy.log.error)
+        .be.calledTwice()
+        .be.calledWith('Failed to init connection with backend %s:\n%s', 'host:1234', error.stack);
     });
   });
 
