@@ -333,10 +333,11 @@ describe('lib/core/KuzzleProxy', () => {
 
     it('should forward the params to the logger when using "logstash" format output', () => {
       const
-        connection = { foo: 'bar' },
-        request = { foo: 'bar' },
-        error = { foo: 'bar' },
-        result = { foo: 'bar'};
+        connection = {foo: 'bar' },
+        request = {foo: 'bar' },
+        error = new Error('test'),
+        result = {foo: 'bar', status: 'resultStatus'};
+      error.status = '444';
 
       proxy.clientConnectionStore.get = sinon.stub().returns(connection);
       proxy.config.logs.accessLogFormat = 'logstash';
@@ -347,8 +348,8 @@ describe('lib/core/KuzzleProxy', () => {
         .be.calledWithMatch({
           connection,
           request,
-          error,
-          result
+          error: 'Error: test',
+          status: '444'
         });
     });
 
