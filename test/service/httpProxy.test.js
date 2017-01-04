@@ -226,7 +226,7 @@ describe('/service/httpProxy', () => {
 
       should(response.end)
         .be.calledOnce()
-        .be.calledWith(JSON.stringify(result, undefined, 2));
+        .be.calledWith(JSON.stringify(result.content, undefined, 2));
     });
 
     it('should output buffer raw result', () => {
