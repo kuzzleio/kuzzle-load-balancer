@@ -1,482 +1,363 @@
 var
   should = require('should'),
-  EventEmitter = require('events'),
   rewire = require('rewire'),
   Backend = rewire('../../lib/service/Backend'),
   sinon = require('sinon'),
-  PendingRequest = require.main.require('lib/store/PendingRequest'),
-  InternalError = require('kuzzle-common-objects').errors.InternalError;
+  PendingRequest = require.main.require('lib/store/PendingRequest');
 
-describe('Test: service/Backend', function () {
-  var
-    sandbox,
-    dummyContext = {
-      dummy: 'context',
-      clientConnectionStore: {getByConnectionId: () => {}},
-      pluginStore: {getByProtocol: () => {}},
-      backendHandler: {removeBackend: () => {}}
-    },
-    dummyTimeout = 1234,
-    dummyAddress = 'aDummyAddress',
-    spyConsoleError,
-    spyConsoleLog,
-    spySocketClose;
-
-  before(() => {
-    sandbox = sinon.sandbox.create();
-  });
+describe('service/Backend', () => {
+  let
+    backend,
+    proxy,
+    socket;
 
   beforeEach(() => {
-    spySocketClose = sandbox.spy();
-    spyConsoleError = sandbox.spy();
-    spyConsoleLog = sandbox.spy();
-    Backend.__set__('console', {log: spyConsoleLog, error: spyConsoleError});
+    proxy = {
+      backendHandler: {
+        removeBackend: sinon.spy()
+      },
+      clientConnectionStore: {
+        get: sinon.stub()
+      },
+      log: {
+        error: sinon.spy(),
+        warn: sinon.spy()
+      },
+      pluginStore: {
+        getByProtocol: sinon.stub().returns({
+          joinChannel: sinon.spy(),
+          leaveChannel: sinon.spy(),
+          notify: sinon.spy()
+        })
+      }
+    };
+
+    socket = {
+      close: sinon.spy(),
+      on: sinon.spy(),
+      send: sinon.spy(),
+      upgradeReq: {
+        connection: {
+          remoteAddress: 'ip'
+        }
+      }
+    };
+
+    backend = new Backend(socket, proxy, 'timeout');
   });
 
   afterEach(() => {
-    sandbox.restore();
   });
 
-  it('method Constructor must initiate properly and plug good listeners to events', () => {
-    var
-      backend,
-      dummySocket = new EventEmitter(),
-      onConnectionCloseStub = sandbox.stub(Backend.prototype, 'onConnectionClose'),
-      onConnectionErrorStub = sandbox.stub(Backend.prototype, 'onConnectionError'),
-      onMessageStub = sandbox.stub(Backend.prototype, 'onMessage'),
-      messageRoomsStub = sandbox
-        .stub(Backend.prototype, 'initializeMessageRooms')
-        .returns({});
 
-    dummySocket.upgradeReq = {connection: {remoteAddress: dummyAddress}};
+  describe('#constructor', () => {
+    it('should init the request queue and attach events', () => {
+      should(backend.backendRequestStore)
+        .be.an.instanceOf(PendingRequest);
 
-    backend = new Backend(dummySocket, dummyContext, dummyTimeout);
-
-    backend.socket.emit('close');
-    backend.socket.emit('error');
-    backend.socket.emit('message');
-
-    should(onConnectionCloseStub.calledOnce).be.true();
-    should(onConnectionErrorStub.calledOnce).be.true();
-    should(messageRoomsStub.calledOnce).be.true();
-    should(onMessageStub.calledOnce).be.true();
-    should(backend.backendRequestStore).be.instanceOf(PendingRequest);
-    should(backend.onMessageRooms).be.an.Object();
+      should(socket.on)
+        .be.calledThrice()
+        .be.calledWith('close')
+        .be.calledWith('error')
+        .be.calledWith('message');
+    });
   });
 
   describe('#onMessage', () => {
-    it('must write a console error if the message contains no room', () => {
-      var
-        backend = initBackend(dummyContext),
-        badMessage = {no: 'room'},
-        badMessageString = JSON.stringify(badMessage);
+    it('should log an error if the message cannot be parsed', () => {
+      backend.onMessage('invalid json');
 
-      backend.onMessage(badMessageString);
-
-      should(spyConsoleError.calledWith(`Room is not specified in message: ${badMessageString}`)).be.true();
-    });
-
-    it('onMessage must write a console error if JSON.parse does not do what is expected', () => {
-      var
-        backend = initBackend(dummyContext),
-        badMessage = 'unexpected';
-
-      backend.onMessage(badMessage);
-
-      should(spyConsoleError)
+      should(proxy.log.error)
         .be.calledOnce()
-        .be.calledWithMatch('Bad message received from the backend : unexpected; Reason: SyntaxError: Unexpected token u');
+        .be.calledWithMatch(/^Bad message received from the backend: invalid json/);
     });
 
-    it('message room "response" must call the promise resolution if message is ok', () => {
-      var
-        backend = initBackend(dummyContext),
-        goodResponse = {room: 'response', data: {requestId: 'aRequestId', foo: 'aResponse'}},
-        goodResponseMessage = JSON.stringify(goodResponse),
-        resolveStub = sandbox.stub(backend.backendRequestStore, 'resolve');
+    it('should log an error if no room is given', () => {
+      backend.onMessage('{}');
 
-      backend.onMessage(goodResponseMessage);
-
-      should(resolveStub.calledOnce).be.true();
-      should(resolveStub.calledWith('aRequestId', null, goodResponse.data)).be.true();
+      should(proxy.log.error)
+        .be.calledOnce()
+        .be.calledWith('Room is not specified in message: {}');
     });
 
-    it('message room "httpResponse" must call the promise resolution if message is ok', () => {
-      var
-        backend = initBackend(dummyContext),
-        goodResponse = {
-          room: 'httpResponse',
-          data: {
-            requestId: 'aRequestId',
-            response: 'aResponse',
-            type: 'aType',
-            status: 'httpStatus'
-          }
+    it('should log an error if the room is unknonwn', () => {
+      backend.onMessage(JSON.stringify({
+        room: 'idontexist'
+      }));
+
+      should(proxy.log.error)
+        .be.calledOnce()
+        .be.calledWith('Unknown message type idontexist');
+    });
+
+    it('should call the proper action', () => {
+      backend.onMessageRooms.foo = sinon.spy();
+
+      backend.onMessage(JSON.stringify({
+        room: 'foo',
+        data: 'bar'
+      }));
+
+      should(backend.onMessageRooms.foo)
+        .be.calledOnce()
+        .be.calledWith('bar');
+    });
+  });
+
+  describe('#onConnectionClose', () => {
+    it('should remove the backend and abort all pending requests', () => {
+      backend.backendRequestStore.abortAll = sinon.spy();
+
+      backend.onConnectionClose();
+
+      should(proxy.backendHandler.removeBackend)
+        .be.calledOnce()
+        .be.calledWith(backend);
+
+      should(backend.backendRequestStore.abortAll)
+        .be.calledOnce();
+
+      should(socket.close)
+        .be.calledOnce();
+    });
+  });
+
+  describe('#onConnectionError', () => {
+    it('should remove the backend and abort all pending requests', () => {
+      const error = new Error('test');
+
+      backend.backendRequestStore.abortAll = sinon.spy();
+
+      backend.onConnectionError(error);
+
+      should(proxy.backendHandler.removeBackend)
+        .be.calledOnce()
+        .be.calledWith(backend);
+
+      should(backend.backendRequestStore.abortAll)
+        .be.calledOnce();
+    });
+  });
+
+  describe('#send', () => {
+    it('should register the cb and call the backend', () => {
+      backend.backendRequestStore.add = sinon.spy();
+
+      backend.send('room', 'id', 'data', 'callback');
+
+      should(backend.backendRequestStore.add)
+        .be.calledOnce()
+        .be.calledWith('id', 'data', 'callback');
+
+      should(socket.send)
+        .be.calledOnce()
+        .be.calledWith(JSON.stringify({room: 'room', data: 'data'}));
+    });
+  });
+
+  describe('#sendRaw', () => {
+    it('should forward the request to the backend socket', () => {
+      backend.sendRaw('room', 'data', 'callback');
+
+      should(socket.send)
+        .be.calledOnce()
+        .be.calledWith(JSON.stringify({room: 'room', data: 'data'}), 'callback');
+    });
+  });
+
+  describe('#room actions', () => {
+    beforeEach(() => {
+      backend.backendRequestStore.resolve = sinon.spy();
+    });
+
+    it('#response', () => {
+      const data = {
+        requestId: 'requestId'
+      };
+
+      backend.onMessageRooms.response(data);
+      should(backend.backendRequestStore.resolve)
+        .be.calledOnce()
+        .be.calledWith('requestId', null, data);
+    });
+
+    it('httpResponse', () => {
+      const data = {
+        requestId: 'requestId'
+      };
+
+      backend.onMessageRooms.httpResponse(data);
+
+      should(backend.backendRequestStore.resolve)
+        .be.calledOnce()
+        .be.calledWith('requestId', null, data);
+    });
+
+    it('#joinChannel should handle errors', () => {
+      const
+        data = {
+          connectionId: 'id'
         },
-        goodResponseMessage = JSON.stringify(goodResponse),
-        resolveStub = sandbox.stub(backend.backendRequestStore, 'resolve');
+        error = new Error('test');
 
-      backend.onMessage(goodResponseMessage);
+      proxy.clientConnectionStore.get.returns({
+        protocol: 'protocol'
+      });
+      proxy.pluginStore.getByProtocol.returns({
+        joinChannel: sinon.stub().throws(error)
+      });
 
-      should(resolveStub.calledOnce).be.true();
-      should(resolveStub.calledWithMatch('aRequestId', null, goodResponse.data)).be.true();
+      backend.onMessageRooms.joinChannel(data);
+
+      should(proxy.log.error)
+        .be.calledOnce()
+        .be.calledWith('[Join Channel] Plugin protocol failed: test');
     });
 
-    it('message room "joinChannel" must call joinChannel if everything is ok', () => {
-      var
-        backend = initBackend(dummyContext),
-        join = {room: 'joinChannel', data: {connectionId: 'anId', some: 'data'}},
-        joinMessage = JSON.stringify(join),
-        connectionGetStub,
-        pluginGetStub,
-        joinChannelSpy;
+    it('#joinChannel', () => {
+      const data = {
+        connectionId: 'id'
+      };
 
-      connectionGetStub = sandbox
-        .stub(backend.context.clientConnectionStore, 'getByConnectionId')
-        .returns({protocol: 'aType'});
+      proxy.clientConnectionStore.get.returns({
+        protocol: 'protocol'
+      });
+      backend.onMessageRooms.joinChannel(data);
 
-      joinChannelSpy = sandbox.spy();
+      should(proxy.pluginStore.getByProtocol)
+        .be.calledOnce()
+        .be.calledWith('protocol');
 
-      pluginGetStub = sandbox
-        .stub(backend.context.pluginStore, 'getByProtocol')
-        .returns({joinChannel: joinChannelSpy});
+      should(proxy.pluginStore.getByProtocol.firstCall.returnValue.joinChannel)
+        .be.calledOnce()
+        .be.calledWith(data);
 
-      backend.onMessage(joinMessage);
-
-      should(connectionGetStub.calledOnce).be.true();
-      should(connectionGetStub.calledWith('anId')).be.true();
-      should(pluginGetStub.calledOnce).be.true();
-      should(pluginGetStub.calledWith('aType')).be.true();
-      should(joinChannelSpy.calledOnce).be.true();
-      should(joinChannelSpy.calledWith(join.data)).be.true();
     });
 
-    it('message room "joinChannel" must do nothing if client type can not be determined', () => {
-      var
-        backend = initBackend(dummyContext),
-        join = {room: 'joinChannel', data: {connectionId: 'anId', some: 'data'}},
-        joinMessage = JSON.stringify(join),
-        connectionGetStub,
-        pluginGetStub;
+    it('#leaveChannel should log errors', () => {
+      const
+        data = {
+          connectionId: 'id'
+        },
+        error = new Error('test');
 
-      connectionGetStub = sandbox
-        .stub(backend.context.clientConnectionStore, 'getByConnectionId')
-        .returns({});
-      pluginGetStub = sandbox.stub(backend.context.pluginStore, 'getByProtocol');
+      proxy.clientConnectionStore.get.returns({
+        protocol: 'protocol'
+      });
+      proxy.pluginStore.getByProtocol.throws(error);
 
-      backend.onMessage(joinMessage);
+      backend.onMessageRooms.leaveChannel(data);
 
-      should(connectionGetStub.calledOnce).be.true();
-      should(connectionGetStub.calledWith('anId')).be.true();
-      should(pluginGetStub.callCount).be.eql(0);
+      should(proxy.log.error)
+        .be.calledOnce()
+        .be.calledWith('[Leave Channel] Plugin undefined failed: test');
     });
 
-    it('message room "joinChannel" should recover from a plugin crash', () => {
-      var
-        backend = initBackend(dummyContext),
-        join = {room: 'joinChannel', data: {connectionId: 'anId', some: 'data'}},
-        joinMessage = JSON.stringify(join),
-        connectionGetStub,
-        pluginGetStub,
-        joinChannelStub;
+    it('#leaveChannel', () => {
+      const data = {
+        connectionId: 'id'
+      };
 
-      connectionGetStub = sandbox
-        .stub(backend.context.clientConnectionStore, 'getByConnectionId')
-        .returns({protocol: 'aType'});
+      proxy.clientConnectionStore.get.returns({
+        protocol: 'protocol'
+      });
 
-      joinChannelStub = sandbox.stub();
-      joinChannelStub.throws(new Error('OH NOES!!1!'));
+      backend.onMessageRooms.leaveChannel(data);
 
-      pluginGetStub = sandbox
-        .stub(backend.context.pluginStore, 'getByProtocol')
-        .returns({joinChannel: joinChannelStub});
-
-      should.doesNotThrow(() => { backend.onMessage(joinMessage); });
-
-      should(connectionGetStub.calledOnce).be.true();
-      should(connectionGetStub.calledWith('anId')).be.true();
-      should(pluginGetStub.calledOnce).be.true();
-      should(pluginGetStub.calledWith('aType')).be.true();
-      should(joinChannelStub.calledOnce).be.true();
-      should(joinChannelStub.calledWith(join.data)).be.true();
+      should(proxy.pluginStore.getByProtocol.firstCall.returnValue.leaveChannel)
+        .be.calledOnce()
+        .be.calledWith(data);
     });
 
-    it('message room "leaveChannel" must call leaveChannel if everything is ok', () => {
-      var
-        backend = initBackend(dummyContext),
-        leave = {room: 'leaveChannel', data: {connectionId: 'anId', some: 'data'}},
-        leaveMessage = JSON.stringify(leave),
-        connectionGetStub,
-        pluginGetStub,
-        leaveChannelSpy;
+    it('#notify should log errors', () => {
+      const
+        data = {
+          connectionId: 'id'
+        },
+        error = new Error('test');
 
-      connectionGetStub = sandbox
-        .stub(backend.context.clientConnectionStore, 'getByConnectionId')
-        .returns({protocol: 'aType'});
+      proxy.clientConnectionStore.get.returns({
+        protocol: 'protocol'
+      });
+      proxy.pluginStore.getByProtocol.throws(error);
 
-      leaveChannelSpy = sandbox.spy();
+      backend.onMessageRooms.notify(data);
 
-      pluginGetStub = sandbox
-        .stub(backend.context.pluginStore, 'getByProtocol')
-        .returns({leaveChannel: leaveChannelSpy});
-
-      backend.onMessage(leaveMessage);
-
-      should(connectionGetStub.calledOnce).be.true();
-      should(connectionGetStub.calledWith('anId')).be.true();
-      should(pluginGetStub.calledOnce).be.true();
-      should(pluginGetStub.calledWith('aType')).be.true();
-      should(leaveChannelSpy.calledOnce).be.true();
-      should(leaveChannelSpy.calledWith(leave.data)).be.true();
+      should(proxy.log.error)
+        .be.calledOnce()
+        .be.calledWith('[Notify] Plugin protocol failed: test\nNotification data:\n%s');
     });
 
-    it('message room "leaveChannel" must do nothing if client type can not be determined', () => {
-      var
-        backend = initBackend(dummyContext),
-        leave = {room: 'leaveChannel', data: {connectionId: 'anId', some: 'data'}},
-        leaveMessage = JSON.stringify(leave),
-        connectionGetStub,
-        pluginGetStub;
+    it('#notify', () => {
+      const data = {
+        connectionId: 'id'
+      };
 
-      connectionGetStub = sandbox
-        .stub(backend.context.clientConnectionStore, 'getByConnectionId')
-        .returns({});
-      pluginGetStub = sandbox.stub(backend.context.pluginStore, 'getByProtocol');
+      proxy.clientConnectionStore.get.returns({
+        protocol: 'protocol'
+      });
 
-      backend.onMessage(leaveMessage);
+      backend.onMessageRooms.notify(data);
 
-      should(connectionGetStub.calledOnce).be.true();
-      should(connectionGetStub.calledWith('anId')).be.true();
-      should(pluginGetStub.callCount).be.eql(0);
+      should(proxy.pluginStore.getByProtocol.firstCall.returnValue.notify)
+        .be.calledOnce()
+        .be.calledWith(data);
     });
 
-    it('message room "leaveChannel" should recover from a plugin crash', () => {
-      var
-        backend = initBackend(dummyContext),
-        leave = {room: 'leaveChannel', data: {connectionId: 'anId', some: 'data'}},
-        leaveMessage = JSON.stringify(leave),
-        connectionGetStub,
-        pluginGetStub,
-        leaveChannelStub;
+    it('#broadcast should handle errors', () => {
+      const
+        data = {
+          connectionId: 'id'
+        },
+        error = new Error('test');
 
-      connectionGetStub = sandbox
-        .stub(backend.context.clientConnectionStore, 'getByConnectionId')
-        .returns({protocol: 'aType'});
+      proxy.clientConnectionStore.get.returns({
+        protocol: 'protocol'
+      });
+      proxy.pluginStore.plugins = {
+        foo: {
+          broadcast: sinon.spy()
+        },
+        bar: {
+          broadcast: sinon.stub().throws(error)
+        }
+      };
 
-      leaveChannelStub = sandbox.stub();
-      leaveChannelStub.throws(new Error('OH NOES!!1!'));
+      backend.onMessageRooms.broadcast(data);
 
-      pluginGetStub = sandbox
-        .stub(backend.context.pluginStore, 'getByProtocol')
-        .returns({leaveChannel: leaveChannelStub});
-
-      should.doesNotThrow(() => { backend.onMessage(leaveMessage); });
-
-      should(connectionGetStub.calledOnce).be.true();
-      should(connectionGetStub.calledWith('anId')).be.true();
-      should(pluginGetStub.calledOnce).be.true();
-      should(pluginGetStub.calledWith('aType')).be.true();
-      should(leaveChannelStub.calledOnce).be.true();
-      should(leaveChannelStub.calledWith(leave.data)).be.true();
+      should(proxy.log.error)
+        .be.calledOnce()
+        .be.calledWith('[Broadcast] Plugin undefined failed: test\nNotification data:\n%s');
     });
 
-    it('message room "notify" must call notify if everything is ok', () => {
-      var
-        backend = initBackend(dummyContext),
-        notify = {room: 'notify', data: {connectionId: 'anId', some: 'data'}},
-        notifyMessage = JSON.stringify(notify),
-        connectionGetStub,
-        pluginGetStub,
-        notifySpy;
+    it('#broadcast', () => {
+      const data = {
+        connectionId: 'id'
+      };
 
-      connectionGetStub = sandbox
-        .stub(backend.context.clientConnectionStore, 'getByConnectionId')
-        .returns({protocol: 'aType'});
+      proxy.clientConnectionStore.get.returns({
+        protocol: 'protocol'
+      });
+      proxy.pluginStore.plugins = {
+        foo: {
+          broadcast: sinon.spy()
+        },
+        bar: {
+          broadcast: sinon.spy()
+        }
+      };
 
-      notifySpy = sandbox.spy();
+      backend.onMessageRooms.broadcast(data);
 
-      pluginGetStub = sandbox
-        .stub(backend.context.pluginStore, 'getByProtocol')
-        .returns({notify: notifySpy});
-
-      backend.onMessage(notifyMessage);
-
-      should(connectionGetStub.calledOnce).be.true();
-      should(connectionGetStub.calledWith('anId')).be.true();
-      should(pluginGetStub.calledOnce).be.true();
-      should(pluginGetStub.calledWith('aType')).be.true();
-      should(notifySpy.calledOnce).be.true();
-      should(notifySpy.calledWith(notify.data)).be.true();
-    });
-
-    it('message room "notify" must do nothing if client type can not be determined', () => {
-      var
-        backend = initBackend(dummyContext),
-        notify = {room: 'notify', data: {connectionId: 'anId', some: 'data'}},
-        notifyMessage = JSON.stringify(notify),
-        connectionGetStub,
-        pluginGetStub;
-
-      connectionGetStub = sandbox
-        .stub(backend.context.clientConnectionStore, 'getByConnectionId')
-        .returns({});
-      pluginGetStub = sandbox.stub(backend.context.pluginStore, 'getByProtocol');
-
-      backend.onMessage(notifyMessage);
-
-      should(connectionGetStub.calledOnce).be.true();
-      should(connectionGetStub.calledWith('anId')).be.true();
-      should(pluginGetStub.callCount).be.eql(0);
-    });
-
-    it('message room "notify" must recover from a plugin crash', () => {
-      var
-        backend = initBackend(dummyContext),
-        notify = {room: 'notify', data: {connectionId: 'anId', some: 'data'}},
-        notifyMessage = JSON.stringify(notify),
-        connectionGetStub,
-        pluginGetStub,
-        notifyStub;
-
-      connectionGetStub = sandbox
-        .stub(backend.context.clientConnectionStore, 'getByConnectionId')
-        .returns({protocol: 'aType'});
-
-      notifyStub = sandbox.stub();
-      notifyStub.throws(new Error('OH NOES!!1!'));
-
-      pluginGetStub = sandbox
-        .stub(backend.context.pluginStore, 'getByProtocol')
-        .returns({notify: notifyStub});
-
-      should.doesNotThrow(() => { backend.onMessage(notifyMessage); });
-
-      should(connectionGetStub.calledOnce).be.true();
-      should(connectionGetStub.calledWith('anId')).be.true();
-      should(pluginGetStub.calledOnce).be.true();
-      should(pluginGetStub.calledWith('aType')).be.true();
-      should(notifyStub.calledOnce).be.true();
-      should(notifyStub.calledWith(notify.data)).be.true();
-    });
-
-    it('message room "broadcast" must broadcast message to all plugins', () => {
-      var
-        spyPluginBroadcast = sandbox.spy(),
-        pluginContext = {pluginStore: {plugins: {aPlugin: {broadcast: spyPluginBroadcast}}}},
-        backend = initBackend(pluginContext),
-        broadcast = {room: 'broadcast', data: {some: 'data'}},
-        broadcastMessage = JSON.stringify(broadcast);
-
-      backend.onMessage(broadcastMessage);
-
-      should(spyPluginBroadcast.calledOnce).be.true();
-      should(spyPluginBroadcast.calledWith(broadcast.data)).be.true();
-    });
-
-    it('message room "broadcast" must recover from a plugin crash', () => {
-      var
-        stubPluginBroadcast = sandbox.stub(),
-        pluginContext = {pluginStore: {plugins: {aPlugin: {broadcast: stubPluginBroadcast}}}},
-        backend = initBackend(pluginContext),
-        broadcast = {room: 'broadcast', data: {some: 'data'}},
-        broadcastMessage = JSON.stringify(broadcast);
-
-      stubPluginBroadcast.throws(new Error('OH NOES!!1!'));
-
-      should.doesNotThrow(() => {backend.onMessage(broadcastMessage); });
-
-      should(stubPluginBroadcast.calledOnce).be.true();
-      should(stubPluginBroadcast.calledWith(broadcast.data)).be.true();
-    });
-
-    it('unexpected message room should write a message in console error', () => {
-      var
-        backend = initBackend(dummyContext),
-        unexpected = {room: 'unexpected'},
-        unexpectedMessage = JSON.stringify(unexpected);
-
-      backend.onMessage(unexpectedMessage);
-
-      should(spyConsoleError.calledWith('Unknown message type unexpected')).be.true();
+      should(proxy.pluginStore.plugins.foo.broadcast)
+        .be.calledOnce()
+        .be.calledWith(data);
+      should(proxy.pluginStore.plugins.bar.broadcast)
+        .be.calledOnce()
+        .be.calledWith(data);
     });
   });
 
-  it('#onConnectionClose', () => {
-    var
-      backend = initBackend(dummyContext),
-      abortAllStub = sandbox.stub(backend.backendRequestStore, 'abortAll'),
-      removeBackendStub = sandbox.stub(backend.context.backendHandler, 'removeBackend');
-
-    backend.onConnectionClose();
-
-    should(spyConsoleLog.calledOnce).be.true();
-    should(spyConsoleLog.calledWith(`Connection with backend ${dummyAddress} closed.`)).be.true();
-    should(spySocketClose.calledOnce).be.true();
-    should(abortAllStub.calledOnce).be.true();
-    should(abortAllStub.calledWithMatch(InternalError));
-    should(removeBackendStub.calledOnce).be.true();
-    should(removeBackendStub.calledWith(backend)).be.true();
-  });
-
-  it('#onConnectionError', () => {
-    var
-      backend = initBackend(dummyContext),
-      abortAllStub = sandbox.stub(backend.backendRequestStore, 'abortAll'),
-      removeBackendStub,
-      error = new Error('an Error');
-
-    removeBackendStub = sandbox.stub(backend.context.backendHandler, 'removeBackend');
-
-    backend.onConnectionError(error);
-
-    should(spyConsoleError.calledOnce).be.true();
-    should(spyConsoleError.calledWith(`Connection error with backend ${dummyAddress}; Reason:`, error)).be.true();
-    should(abortAllStub.calledOnce).be.true();
-    should(abortAllStub.calledWithMatch(InternalError));
-    should(removeBackendStub.calledOnce).be.true();
-    should(removeBackendStub.calledWith(backend)).be.true();
-  });
-
-
-  it('#send', () => {
-    var
-      backend = initBackend(dummyContext),
-      addStub = sandbox.stub(backend.backendRequestStore, 'add'),
-      data = {message: 'a message'},
-      id = 'id',
-      cb = function () {},
-      room = 'room';
-
-    backend.socket.send = sandbox.stub();
-
-    backend.send(room, id, data, cb);
-
-    should(addStub.calledOnce).be.true();
-    should(addStub.calledWith(id, data, cb)).be.true();
-    should(backend.socket.send.calledOnce).be.true();
-    should(backend.socket.send.calledWith(JSON.stringify({room, data}))).be.true();
-  });
-
-  function initBackend (context) {
-    var dummySocket = new EventEmitter();
-
-    dummySocket.close = spySocketClose;
-    dummySocket.upgradeReq = {connection: {remoteAddress: dummyAddress}};
-
-    return new Backend(dummySocket, context, dummyTimeout);
-  }
-
-  it('#sendRaw', () => {
-    var
-      backend = initBackend(dummyContext),
-      cb = () => {},
-      message = 'foobar';
-
-    backend.socket.send = sandbox.spy();
-
-    backend.sendRaw(message, cb);
-
-    should(backend.socket.send.calledOnce).be.true();
-    should(backend.socket.send.calledWith(message, cb));
-  });
 });
+
+
