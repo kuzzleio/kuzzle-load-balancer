@@ -1,7 +1,6 @@
 'use strict';
 
 const
-  bytes = require('bytes'),
   rewire = require('rewire'),
   should = require('should'),
   sinon = require('sinon'),
@@ -49,6 +48,34 @@ describe('/service/httpProxy', () => {
   });
 
   describe('#init', () => {
+    const
+      sandbox = sinon.sandbox.create(),
+      request = {
+        url: 'url',
+        method: 'method',
+        httpVersion: '1.1',
+        socket: {
+          remoteAddress: '1.1.1.1'
+        }
+      },
+      response = {
+        writeHead: sandbox.spy()
+      };
+
+    beforeEach(() => {
+      request.headers = {
+        'x-forwarded-for': '2.2.2.2',
+        'x-foo': 'bar'
+      };
+      request.on = sandbox.spy();
+      request.resume = sandbox.spy();
+      request.removeAllListeners = sandbox.stub().returnsThis();
+    });
+
+    afterEach(() => {
+      sandbox.restore();
+    });
+
     it('should throw if an invalid maxRequestSize is given', () => {
       proxy.config.http.maxRequestSize = 'invalid';
 
@@ -64,38 +91,17 @@ describe('/service/httpProxy', () => {
     });
 
     it('should init the http server', () => {
-      const
-        sandbox = sinon.sandbox.create(),
-        request = {
-          url: 'url',
-          method: 'method',
-          headers: {
-            'x-forwarded-for': '2.2.2.2',
-            'x-foo': 'bar'
-          },
-          httpVersion: '1.1',
-          on: sandbox.spy(),
-          removeAllListeners: sandbox.stub().returnsThis(),
-          resume: sandbox.spy(),
-          socket: {
-            remoteAddress: '1.1.1.1'
-          }
-        },
-        response = {
-          writeHead: sandbox.spy()
-        };
+      should(httpProxy.server.listen)
+        .be.calledOnce()
+        .be.calledWith(proxy.config.http.port, proxy.config.http.host);
+    });
 
+    it('should respond with error if the request is too big', () => {
       HttpProxy.__with__({
-        replyWithError: sandbox.spy(),
-        sendRequest: sandbox.spy()
+        replyWithError: sandbox.spy()
       })(() => {
-        should(httpProxy.server.listen)
-          .be.calledOnce()
-          .be.calledWith(proxy.config.http.port, proxy.config.http.host);
-
         let cb = HttpProxy.__get__('http').createServer.firstCall.args[0];
 
-        // 1 - should respond with error if the request is too big
         request.headers['content-length'] = 9999999999;
 
         cb(request, response);
@@ -115,11 +121,15 @@ describe('/service/httpProxy', () => {
         should(HttpProxy.__get__('replyWithError'))
           .be.calledOnce()
           .be.calledWithMatch(/^[0-9a-w-]+$/, {url: request.url, method: request.method}, response, {message: 'Error: maximum HTTP request size exceeded'});
+      });
+    });
 
-        delete request.headers['content-length'];
-        sandbox.restore();
+    it('should reply with error if the actual data sent exceeds the maxRequestSize', () => {
+      HttpProxy.__with__({
+        replyWithError: sandbox.spy()
+      })(() => {
+        let cb = HttpProxy.__get__('http').createServer.firstCall.args[0];
 
-        // 2 - should reply with error if the actual data sent exceeds the maxRequestSize
         httpProxy.maxRequestSize = 2;
         cb(request, response);
 
@@ -131,28 +141,27 @@ describe('/service/httpProxy', () => {
 
         should(HttpProxy.__get__('replyWithError'))
           .be.calledWithMatch(/^[0-9a-z-]+$/, {url: request.url, method: request.method}, response, {message: 'Error: maximum HTTP request size exceeded'});
-
-        httpProxy.maxRequestSize = bytes.parse('100k');
-        sandbox.restore();
-
-        // 3 - valid request
-        cb(request, response);
-
-        dataCB = request.on.thirdCall.args[1];
-        dataCB('chunk1');
-        dataCB('chunk2');
-        dataCB('chunk3');
-
-        let endCB = request.on.getCall(3).args[1];
-        endCB();
-
-        should(HttpProxy.__get__('sendRequest'))
-          .be.calledOnce()
-          .be.calledWithMatch(/^[a-z0-9-]+$/, response, {
-            content: 'chunk1chunk2chunk3'
-          }
-        );
       });
+    });
+
+    it('should handle valid JSON request', (done) => {
+      const resetSendRequest = HttpProxy.__set__('sendRequest', (connId, res, pload) => {
+        resetSendRequest();
+        should(pload.content).be.exactly('chunk1chunk2chunk3');
+        done();
+      });
+
+      let cb = HttpProxy.__get__('http').createServer.firstCall.args[0];
+
+      cb(request, response);
+
+      let dataCB = request.on.firstCall.args[1];
+      dataCB('chunk1');
+      dataCB('chunk2');
+      dataCB('chunk3');
+
+      let endCB = request.on.lastCall.args[1];
+      endCB();
     });
   });
 
