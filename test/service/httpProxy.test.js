@@ -83,6 +83,13 @@ describe('/service/httpProxy', () => {
         .throw('Invalid HTTP "maxRequestSize" parameter');
     });
 
+    it('should throw if an invalid maxFileSize is given', () => {
+      proxy.config.http.maxFileSize = 'invalid';
+
+      return should(() => httpProxy.init(proxy))
+        .throw('Invalid HTTP "maxFileSize" parameter');
+    });
+
     it('should throw if no port is given', () => {
       delete proxy.config.http.port;
 
