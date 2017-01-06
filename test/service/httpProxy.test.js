@@ -113,16 +113,6 @@ describe('/service/httpProxy', () => {
 
         cb(request, response);
 
-        should(proxy.clientConnectionStore.add)
-          .be.calledOnce()
-          .be.calledWithMatch({
-            protocol: 'HTTP/1.1',
-            ips: ['2.2.2.2', '1.1.1.1'],
-            headers: {
-              'x-forwarded-for': '2.2.2.2',
-              'x-foo': 'bar'
-            }
-          });
         should(request.resume)
           .be.calledOnce();
         should(HttpProxy.__get__('replyWithError'))
@@ -161,6 +151,17 @@ describe('/service/httpProxy', () => {
       let cb = HttpProxy.__get__('http').createServer.firstCall.args[0];
 
       cb(request, response);
+
+      should(proxy.clientConnectionStore.add)
+        .be.calledOnce()
+        .be.calledWithMatch({
+          protocol: 'HTTP/1.1',
+          ips: ['2.2.2.2', '1.1.1.1'],
+          headers: {
+            'x-forwarded-for': '2.2.2.2',
+            'x-foo': 'bar'
+          }
+        });
 
       let dataCB = request.on.firstCall.args[1];
       dataCB('chunk1');
