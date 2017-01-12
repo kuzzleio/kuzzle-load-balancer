@@ -50,6 +50,7 @@
   //   [host]:  ip on which the proxy should bind itself for http connections. Defaults to all interfaces
   "http": {
     "port": 7511,
-    "maxRequestSize": "1MB"
+    "maxRequestSize": "1MB",
+    "maxFileSize": "1MB"
   }
 }
