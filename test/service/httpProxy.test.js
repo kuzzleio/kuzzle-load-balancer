@@ -242,7 +242,7 @@ describe('/service/httpProxy', () => {
           .be.calledTwice();
 
         should(HttpProxy.__get__('replyWithError'))
-          .be.calledWithMatch(/^[0-9a-z-]+$/, {url: request.url, method: request.method}, response, {message: 'Error: maximum HTTP request size exceeded'});
+          .be.calledWithMatch(/^[0-9a-z-]+$/, {url: request.url, method: request.method}, response, {message: 'Error: maximum HTTP file size exceeded'});
       });
     });
 
