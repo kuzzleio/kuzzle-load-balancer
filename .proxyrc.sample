@@ -47,6 +47,9 @@
   //   maxRequestSize: the size limit of a request. If it's a string, the
   //       value is passed to the "bytes" library (https://www.npmjs.com/package/bytes).
   //       If this is a number, then the value specifies the number of bytes.
+  //   maxFileSize: the size limit of a file (for upload requests). If it's a string, the
+  //       value is passed to the "bytes" library (https://www.npmjs.com/package/bytes).
+  //       If this is a number, then the value specifies the number of bytes.
   //   [host]:  ip on which the proxy should bind itself for http connections. Defaults to all interfaces
   "http": {
     "port": 7511,
