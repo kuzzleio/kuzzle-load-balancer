@@ -1,4 +1,6 @@
-var
+'use strict';
+
+const
   should = require('should'),
   rewire = require('rewire'),
   Backend = rewire('../../lib/service/Backend'),

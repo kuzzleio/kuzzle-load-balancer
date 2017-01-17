@@ -1,7 +1,6 @@
 'use strict';
 
 const
-  bytes = require('bytes'),
   rewire = require('rewire'),
   should = require('should'),
   sinon = require('sinon'),
@@ -24,7 +23,8 @@ describe('/service/httpProxy', () => {
       },
       config: {
         http: {
-          maxRequestSize: '100k',
+          maxRequestSize: '100kb',
+          maxFileSize: '100kb',
           port: 1234,
           host: 'host'
         }
@@ -49,11 +49,58 @@ describe('/service/httpProxy', () => {
   });
 
   describe('#init', () => {
+    const
+      sandbox = sinon.sandbox.create(),
+      request = {
+        url: 'url',
+        method: 'method',
+        httpVersion: '1.1',
+        socket: {
+          remoteAddress: '1.1.1.1'
+        }
+      },
+      multipart = [
+        '-----------------------------165748628625109734809700179',
+        'Content-Disposition: form-data; name="foo"',
+        '',
+        'bar',
+        '-----------------------------165748628625109734809700179',
+        'Content-Disposition: form-data; name="baz"; filename="test-multipart.txt"',
+        'Content-Type: text/plain',
+        '',
+        'YOLO\n\n\n',
+        '-----------------------------165748628625109734809700179--'
+      ].join('\r\n'),
+      response = {
+        writeHead: sandbox.spy()
+      };
+
+    beforeEach(() => {
+      request.headers = {
+        'x-forwarded-for': '2.2.2.2',
+        'x-foo': 'bar'
+      };
+      request.on = sandbox.spy();
+      request.resume = sandbox.spy();
+      request.removeAllListeners = sandbox.stub().returnsThis();
+    });
+
+    afterEach(() => {
+      sandbox.restore();
+    });
+
     it('should throw if an invalid maxRequestSize is given', () => {
       proxy.config.http.maxRequestSize = 'invalid';
 
       return should(() => httpProxy.init(proxy))
         .throw('Invalid HTTP "maxRequestSize" parameter');
+    });
+
+    it('should throw if an invalid maxFileSize is given', () => {
+      proxy.config.http.maxFileSize = 'invalid';
+
+      return should(() => httpProxy.init(proxy))
+        .throw('Invalid HTTP "maxFileSize" parameter');
     });
 
     it('should throw if no port is given', () => {
@@ -64,62 +111,35 @@ describe('/service/httpProxy', () => {
     });
 
     it('should init the http server', () => {
-      const
-        sandbox = sinon.sandbox.create(),
-        request = {
-          url: 'url',
-          method: 'method',
-          headers: {
-            'x-forwarded-for': '2.2.2.2',
-            'x-foo': 'bar'
-          },
-          httpVersion: '1.1',
-          on: sandbox.spy(),
-          removeAllListeners: sandbox.stub().returnsThis(),
-          resume: sandbox.spy(),
-          socket: {
-            remoteAddress: '1.1.1.1'
-          }
-        },
-        response = {
-          writeHead: sandbox.spy()
-        };
+      should(httpProxy.server.listen)
+        .be.calledOnce()
+        .be.calledWith(proxy.config.http.port, proxy.config.http.host);
+    });
 
+    it('should respond with error if the request is too big', () => {
       HttpProxy.__with__({
-        replyWithError: sandbox.spy(),
-        sendRequest: sandbox.spy()
+        replyWithError: sandbox.spy()
       })(() => {
-        should(httpProxy.server.listen)
-          .be.calledOnce()
-          .be.calledWith(proxy.config.http.port, proxy.config.http.host);
-
         let cb = HttpProxy.__get__('http').createServer.firstCall.args[0];
 
-        // 1 - should respond with error if the request is too big
         request.headers['content-length'] = 9999999999;
 
         cb(request, response);
 
-        should(proxy.clientConnectionStore.add)
-          .be.calledOnce()
-          .be.calledWithMatch({
-            protocol: 'HTTP/1.1',
-            ips: ['2.2.2.2', '1.1.1.1'],
-            headers: {
-              'x-forwarded-for': '2.2.2.2',
-              'x-foo': 'bar'
-            }
-          });
         should(request.resume)
           .be.calledOnce();
         should(HttpProxy.__get__('replyWithError'))
           .be.calledOnce()
           .be.calledWithMatch(/^[0-9a-w-]+$/, {url: request.url, method: request.method}, response, {message: 'Error: maximum HTTP request size exceeded'});
+      });
+    });
 
-        delete request.headers['content-length'];
-        sandbox.restore();
+    it('should reply with error if the actual data sent exceeds the maxRequestSize', () => {
+      HttpProxy.__with__({
+        replyWithError: sandbox.spy()
+      })(() => {
+        let cb = HttpProxy.__get__('http').createServer.firstCall.args[0];
 
-        // 2 - should reply with error if the actual data sent exceeds the maxRequestSize
         httpProxy.maxRequestSize = 2;
         cb(request, response);
 
@@ -131,28 +151,124 @@ describe('/service/httpProxy', () => {
 
         should(HttpProxy.__get__('replyWithError'))
           .be.calledWithMatch(/^[0-9a-z-]+$/, {url: request.url, method: request.method}, response, {message: 'Error: maximum HTTP request size exceeded'});
+      });
+    });
 
-        httpProxy.maxRequestSize = bytes.parse('100k');
-        sandbox.restore();
+    it('should reply with error if the content type is unsupported', () => {
+      HttpProxy.__with__({
+        replyWithError: sandbox.spy()
+      })(() => {
+        let cb = HttpProxy.__get__('http').createServer.firstCall.args[0];
 
-        // 3 - valid request
+        request.headers['content-type'] = 'foo/bar';
+
         cb(request, response);
 
-        dataCB = request.on.thirdCall.args[1];
-        dataCB('chunk1');
-        dataCB('chunk2');
-        dataCB('chunk3');
-
-        let endCB = request.on.getCall(3).args[1];
-        endCB();
-
-        should(HttpProxy.__get__('sendRequest'))
+        should(request.resume)
+          .be.calledOnce();
+        should(HttpProxy.__get__('replyWithError'))
           .be.calledOnce()
-          .be.calledWithMatch(/^[a-z0-9-]+$/, response, {
-            content: 'chunk1chunk2chunk3'
-          }
-        );
+          .be.calledWithMatch(/^[0-9a-w-]+$/, {url: request.url, method: request.method}, response, {message: 'Unsupported content type: foo/bar'});
       });
+    });
+
+    it('should handle valid JSON request', (done) => {
+      const resetSendRequest = HttpProxy.__set__('sendRequest', (connId, res, pload) => {
+        resetSendRequest();
+        should(pload.content).be.exactly('chunk1chunk2chunk3');
+        done();
+      });
+
+      let cb = HttpProxy.__get__('http').createServer.firstCall.args[0];
+
+      cb(request, response);
+
+      should(proxy.clientConnectionStore.add)
+        .be.calledOnce()
+        .be.calledWithMatch({
+          protocol: 'HTTP/1.1',
+          ips: ['2.2.2.2', '1.1.1.1'],
+          headers: {
+            'x-forwarded-for': '2.2.2.2',
+            'x-foo': 'bar'
+          }
+        });
+
+      let dataCB = request.on.firstCall.args[1];
+      dataCB('chunk1');
+      dataCB('chunk2');
+      dataCB('chunk3');
+
+      let endCB = request.on.lastCall.args[1];
+      endCB();
+    });
+
+    it('should handle valid x-www-form-urlencoded request', (done) => {
+      const resetSendRequest = HttpProxy.__set__('sendRequest', (connId, res, pload) => {
+        resetSendRequest();
+        should(pload.content).be.empty('');
+        should(pload.json.foo).be.exactly('bar');
+        should(pload.json.baz).be.exactly('1234');
+        done();
+      });
+
+      let cb = HttpProxy.__get__('http').createServer.firstCall.args[0];
+
+      request.headers['content-type'] = 'application/x-www-form-urlencoded';
+
+      cb(request, response);
+
+      let dataCB = request.on.firstCall.args[1];
+      dataCB('foo=bar&baz=1234');
+
+      let endCB = request.on.lastCall.args[1];
+      endCB();
+    });
+
+    it('should reply with error if the binary file size sent exceeds the maxFileSize', () => {
+      HttpProxy.__with__({
+        replyWithError: sandbox.spy()
+      })(() => {
+        let cb = HttpProxy.__get__('http').createServer.firstCall.args[0];
+
+        httpProxy.maxFileSize = 2;
+        request.headers['content-type'] = 'multipart/form-data; boundary=---------------------------165748628625109734809700179';
+        cb(request, response);
+
+        let dataCB = request.on.firstCall.args[1];
+
+        dataCB(multipart);
+        should(request.removeAllListeners)
+          .be.calledTwice();
+
+        should(HttpProxy.__get__('replyWithError'))
+          .be.calledWithMatch(/^[0-9a-z-]+$/, {url: request.url, method: request.method}, response, {message: 'Error: maximum HTTP file size exceeded'});
+      });
+    });
+
+    it('should handle valid multipart/form-data request', (done) => {
+      const
+        resetSendRequest = HttpProxy.__set__('sendRequest', (connId, res, pload) => {
+          resetSendRequest();
+          should(pload.content).be.empty('');
+          should(pload.json.foo).be.exactly('bar');
+          should(pload.json.baz.filename).be.exactly('test-multipart.txt');
+          should(pload.json.baz.mimetype).be.exactly('text/plain');
+          should(pload.json.baz.file).be.exactly('WU9MTwoKCg==');
+          done();
+        });
+
+      let cb = HttpProxy.__get__('http').createServer.firstCall.args[0];
+
+      request.headers['content-type'] = 'multipart/form-data; boundary=---------------------------165748628625109734809700179';
+
+      cb(request, response);
+
+      let dataCB = request.on.firstCall.args[1];
+      dataCB(multipart);
+
+      let endCB = request.on.lastCall.args[1];
+      endCB();
     });
   });
 
