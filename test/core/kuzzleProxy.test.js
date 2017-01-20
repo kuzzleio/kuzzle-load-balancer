@@ -34,6 +34,9 @@ describe('lib/core/KuzzleProxy', () => {
       HttpProxy: sinon.spy(function () {
         this.init = sinon.spy();                // eslint-disable-line no-invalid-this
       }),
+      WsProxy: sinon.spy(function () {
+        this.init = sinon.spy();                // eslint-disable-line no-invalid-this
+      }),
       PluginPackage: sinon.spy(function () {
         this.needsInstall = sinon.stub().returns(true);   // eslint-disable-line no-invalid-this
         this.install = sinon.stub().returns(Promise.resolve((function () { return this; })())); // eslint-disable-line no-invalid-this
@@ -95,13 +98,16 @@ describe('lib/core/KuzzleProxy', () => {
             .be.calledOnce();
           should(proxy.httpProxy.init)
             .be.calledOnce();
+          should(proxy.wsProxy.init)
+            .be.calledOnce();
 
           sinon.assert.callOrder(
             proxy.initLogger,
             proxy.installPluginsIfNeeded,
-            proxy.initPlugins,
             proxy.broker.init,
-            proxy.httpProxy.init
+            proxy.httpProxy.init,
+            proxy.wsProxy.init,
+            proxy.initPlugins
           );
         });
     });
@@ -131,12 +137,22 @@ describe('lib/core/KuzzleProxy', () => {
 
   describe('#installPluginsIfNeeded', () => {
     it('should install plugins if needed', () => {
+      proxy.config.protocolPlugins = {
+        'kuzzle-plugin-dummy': {
+          version: '0.0.7',
+          activated: true
+        },
+        'kuzzle-plugin-ipoac': {
+          version: '2.5.4.9',
+          activated: true
+        }
+      };
       return proxy.installPluginsIfNeeded()
         .then((response) => {
           should(KuzzleProxy.__get__('PluginPackage'))
             .be.calledTwice()
-            .be.calledWith('kuzzle-plugin-socketio')
-            .be.calledWith('kuzzle-plugin-websocket');
+            .be.calledWith('kuzzle-plugin-dummy')
+            .be.calledWith('kuzzle-plugin-ipoac');
 
           should(response)
             .be.an.Array()
@@ -182,7 +198,7 @@ describe('lib/core/KuzzleProxy', () => {
           .be.calledOnce()
           .be.calledWith(proxy.config.protocolPlugins.foo.config, proxy.context);
 
-        should(proxy.pluginStore.getByProtocol('protocol'))
+        should(proxy.protocolStore.get('protocol'))
           .be.exactly(pkg);
       });
     });
