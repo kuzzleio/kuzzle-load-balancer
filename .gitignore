@@ -34,3 +34,7 @@ node_modules
 
 # Custom config file
 /pluginsConfig.json
+
+# Plugins
+/plugins/
+!/plugins/*/.keep
