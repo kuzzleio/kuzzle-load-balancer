@@ -128,7 +128,7 @@ describe('lib/core/KuzzleProxy', () => {
             return ['kuzzle-plugin-test', 'kuzzle-plugin-invalid'];
           },
           existsSync: existsStub,
-          lstatSync: () => {
+          statSync: () => {
             return {
               isSymbolicLink: () => {
                 return false;
