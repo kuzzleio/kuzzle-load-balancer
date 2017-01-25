@@ -14,7 +14,6 @@ RUN apt-get update && apt-get install -y \
       g++ \
       python \
     && npm install \
-    && git submodule sync \
     && ./install-plugins.sh \
     && apt-get clean \
     && apt-get remove -y \
