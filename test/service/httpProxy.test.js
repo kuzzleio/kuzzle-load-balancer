@@ -362,6 +362,23 @@ describe('/service/httpProxy', () => {
         .be.calledWith(result.content);
     });
 
+    it('should output a stringified buffer as a raw buffer result', () => {
+      const result = {
+        raw: true,
+        status: 'status',
+        content: JSON.parse(JSON.stringify(new Buffer('test')))
+      };
+
+      sendRequest('connectionId', response, payload);
+      const cb = proxy.broker.brokerCallback.firstCall.args[4];
+
+      cb(undefined, result);
+
+      should(response.end)
+        .be.calledOnce()
+        .be.calledWithMatch(Buffer.from(result.content));
+    });
+
     it('should output serialized JS objects marked as raw', () => {
       const result = {
         raw: true,
