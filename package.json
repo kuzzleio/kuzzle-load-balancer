@@ -21,6 +21,7 @@
     "url": "https://github.com/kuzzleio/kuzzle-proxy.git"
   },
   "dependencies": {
+    "debug": "^2.6.0",
     "async": "^2.0.1",
     "bluebird": "^3.4.1",
     "bufferutil": "^1.2.1",
