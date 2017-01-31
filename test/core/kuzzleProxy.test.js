@@ -140,17 +140,17 @@ describe('lib/core/KuzzleProxy', () => {
           }
         }
       })(() => {
-        sinon.stub(proxy, 'loadPluginFromPackageJson');
-        sinon.stub(proxy, 'loadPluginFromDirectory')
-          .throws(new Error('this error is a test'));
+        sinon.stub(proxy, 'loadPlugin')
+          .onFirstCall().returns({
+            name: 'myPlugin'
+          })
+          .onSecondCall().throws(new Error('Something bad happened'));
         sinon.stub(proxy, 'initPlugin');
 
         proxy.loadPlugins();
 
-        should(proxy.loadPluginFromPackageJson)
-          .be.calledOnce();
-        should(proxy.loadPluginFromDirectory)
-          .be.calledOnce();
+        should(proxy.loadPlugin)
+          .be.calledTwice();
         should(proxy.log.error)
           .be.calledOnce();
         should(proxy.initPlugin)
@@ -159,48 +159,30 @@ describe('lib/core/KuzzleProxy', () => {
     });
   });
 
-  describe('#loadPluginFromPackageJson', () => {
+  describe('#loadPlugin', () => {
     it('should return a valid plugin definition if the path is correct', () => {
+      let pluginClassSpy = sinon.spy();
       let requireStub = sinon.stub();
       let name = 'foo';
-      requireStub.onFirstCall().returns({
+      requireStub.onFirstCall().returns(pluginClassSpy);
+      requireStub.onSecondCall().returns({
         name: name
       });
-      let pluginClassSpy = sinon.spy();
-      requireStub.onSecondCall().returns(pluginClassSpy);
       return KuzzleProxy.__with__({
         path: {
-          resolve: () => {}
+          resolve: () => {},
+          basename: () => {
+            return 'plugin-foo';
+          }
         },
-        require: requireStub
+        require: requireStub,
+        fs: {
+          existsSync: () => {
+            return true;
+          }
+        }
       })(() => {
-        let definition = proxy.loadPluginFromPackageJson();
-
-        should(definition)
-          .be.Object();
-        should(definition)
-          .have.keys('name', 'object', 'config', 'path');
-        should(definition.name)
-          .be.eql(name);
-        should(pluginClassSpy)
-          .be.calledOnce();
-      });
-    });
-  });
-
-  describe('#loadPluginFromDirectory', () => {
-    it('should return a valid plugin definition if the path is correct', () => {
-      let requireStub = sinon.stub();
-      let name = 'foo';
-      let pluginClassSpy = sinon.spy();
-      requireStub.onFirstCall().returns(pluginClassSpy);
-      return KuzzleProxy.__with__({
-        path: {
-          basename: () => name
-        },
-        require: requireStub
-      })(() => {
-        let definition = proxy.loadPluginFromDirectory();
+        let definition = proxy.loadPlugin();
 
         should(definition)
           .be.Object();
