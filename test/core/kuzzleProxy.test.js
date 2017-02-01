@@ -34,10 +34,6 @@ describe('lib/core/KuzzleProxy', () => {
       HttpProxy: sinon.spy(function () {
         this.init = sinon.spy();                // eslint-disable-line no-invalid-this
       }),
-      PluginPackage: sinon.spy(function () {
-        this.needsInstall = sinon.stub().returns(true);   // eslint-disable-line no-invalid-this
-        this.install = sinon.stub().returns(Promise.resolve((function () { return this; })())); // eslint-disable-line no-invalid-this
-      }),
       winston: {
         Logger: sinon.spy(),
         transports: {
@@ -81,155 +77,159 @@ describe('lib/core/KuzzleProxy', () => {
     it('should call proper methods in order', () => {
       proxy.initLogger = sinon.spy();
       proxy.installPluginsIfNeeded = sinon.stub().returns(Promise.resolve());
-      proxy.initPlugins = sinon.spy();
+      proxy.loadPlugins = sinon.spy();
 
-      return proxy.start()
-        .then(() => {
-          should(proxy.initLogger)
-            .be.calledOnce();
-          should(proxy.installPluginsIfNeeded)
-            .be.calledOnce();
-          should(proxy.initPlugins)
-            .be.calledOnce();
-          should(proxy.broker.init)
-            .be.calledOnce();
-          should(proxy.httpProxy.init)
-            .be.calledOnce();
-
-          sinon.assert.callOrder(
-            proxy.initLogger,
-            proxy.installPluginsIfNeeded,
-            proxy.initPlugins,
-            proxy.broker.init,
-            proxy.httpProxy.init
-          );
-        });
+      proxy.start();
+      should(proxy.initLogger)
+        .be.calledOnce();
+      should(proxy.loadPlugins)
+        .be.calledOnce();
+      should(proxy.broker.init)
+        .be.calledOnce();
+      should(proxy.httpProxy.init)
+        .be.calledOnce();
+      sinon.assert.callOrder(
+        proxy.initLogger,
+        proxy.loadPlugins,
+        proxy.broker.init,
+        proxy.httpProxy.init
+      );
     });
 
     it('should log and rethrow if an error occured', () => {
       const error = new Error('test');
 
-      proxy.initPlugins = sinon.stub().throws(error);
+      proxy.loadPlugins = sinon.stub().throws(error);
       proxy.initLogger = () => {
         proxy.loggers.error = {
           error: sinon.spy()
         };
       };
 
-      return proxy.start()
-        .then(() => {
-          should(1).be.exactly('this should not happen');
-        })
-        .catch(e => {
-          should(proxy.log.error)
-            .be.calledOnce()
-            .be.calledWith(e);
-        });
-
-    });
-  });
-
-  describe('#installPluginsIfNeeded', () => {
-    it('should install plugins if needed', () => {
-      return proxy.installPluginsIfNeeded()
-        .then((response) => {
-          should(KuzzleProxy.__get__('PluginPackage'))
-            .be.calledTwice()
-            .be.calledWith('kuzzle-plugin-socketio')
-            .be.calledWith('kuzzle-plugin-websocket');
-
-          should(response)
-            .be.an.Array()
-            .have.length(2);
-        });
-    });
-  });
-
-  describe('#initPlugins', () => {
-    it ('should not installed plugins not marked as active', () => {
-      proxy.config.protocolPlugins = {
-        foo: {
-          activated: false
-        }
-      };
-
-      proxy.initPlugins();
-
-      should(proxy.log.info)
-        .have.callCount(0);
-    });
-
-    it('should init plugins', () => {
-      const
-        pkg = {
-          protocol: 'protocol',
-          init: sinon.spy()
-        };
-
-      return KuzzleProxy.__with__({
-        require: sinon.stub().returns(function () { return pkg; })
-      })(() => {
-        proxy.config.protocolPlugins = {
-          foo: {
-            activated: true,
-            config: {}
-          }
-        };
-
-        proxy.initPlugins();
-
-        should(pkg.init)
-          .be.calledOnce()
-          .be.calledWith(proxy.config.protocolPlugins.foo.config, proxy.context);
-
-        should(proxy.pluginStore.getByProtocol('protocol'))
-          .be.exactly(pkg);
-      });
-    });
-
-    it('should log require errors and not fail', () => {
-      const
-        error = new Error('error'),
-        pkg = {
-          protocol: 'protocol',
-          init: sinon.spy()
-        },
-        requireStub = sinon.stub();
-
-      requireStub.onFirstCall().returns(function () { return pkg; });
-      requireStub.onSecondCall().throws(error);
-
-      KuzzleProxy.__with__({
-        require: requireStub
-      })(() => {
-        proxy.config.protocolPlugins = {
-          foo: {
-            activated: true,
-            config: {}
-          },
-          bar: {
-            activated: true,
-            config: {}
-          }
-        };
-
-        proxy.initPlugins();
-
-        should(requireStub)
-          .be.calledTwice();
-
-        should(proxy.log.info)
-          .be.calledTwice()
-          .be.calledWith('Initializing protocol plugin foo')
-          .be.calledWith('Initializing protocol plugin bar');
-
+      try {
+        proxy.start();
+      } catch (e) {
         should(proxy.log.error)
           .be.calledOnce()
-          .be.calledWith('Initialization of plugin bar has failed; Reason: ');
+          .be.calledWith(e);
+      }
+    });
+  });
 
+  describe('#loadPlugins', () => {
+    it('should load plugins as NodeJS modules and simple require-ables', () => {
+      let existsStub = sinon.stub();
+      existsStub.onFirstCall().returns(1);
+      existsStub.onSecondCall().returns(0);
+
+      return KuzzleProxy.__with__({
+        fs: {
+          readdirSync: () => {
+            return ['kuzzle-plugin-test', 'kuzzle-plugin-invalid'];
+          },
+          existsSync: existsStub,
+          statSync: () => {
+            return {
+              isSymbolicLink: () => {
+                return false;
+              },
+              isDirectory: () => {
+                return true;
+              }
+            };
+          }
+        }
+      })(() => {
+        sinon.stub(proxy, 'loadPlugin')
+          .onFirstCall().returns({
+            name: 'myPlugin'
+          })
+          .onSecondCall().throws(new Error('Something bad happened'));
+        sinon.stub(proxy, 'initPlugin');
+
+        proxy.loadPlugins();
+
+        should(proxy.loadPlugin)
+          .be.calledTwice();
+        should(proxy.log.error)
+          .be.calledOnce();
+        should(proxy.initPlugin)
+          .be.calledOnce();
       });
     });
+  });
 
+  describe('#loadPlugin', () => {
+    it('should return a valid plugin definition if the path is correct', () => {
+      let pluginClassSpy = sinon.spy();
+      let requireStub = sinon.stub();
+      let name = 'foo';
+      requireStub.onFirstCall().returns(pluginClassSpy);
+      requireStub.onSecondCall().returns({
+        name: name
+      });
+      return KuzzleProxy.__with__({
+        path: {
+          resolve: () => {},
+          basename: () => {
+            return 'plugin-foo';
+          }
+        },
+        require: requireStub,
+        fs: {
+          existsSync: () => {
+            return true;
+          }
+        }
+      })(() => {
+        let definition = proxy.loadPlugin();
+
+        should(definition)
+          .be.Object();
+        should(definition)
+          .have.keys('name', 'object', 'config', 'path');
+        should(definition.name)
+          .be.eql(name);
+        should(pluginClassSpy)
+          .be.calledOnce();
+      });
+    });
+  });
+
+  describe('#initPlugin', () => {
+    it('should initialize the plugin', () => {
+      sinon.stub(proxy.pluginStore, 'add');
+      let definition = {
+        object: {
+          init: sinon.spy()
+        }
+      };
+      proxy.initPlugin(definition);
+
+      should(proxy.log.info)
+        .be.calledOnce();
+      should(definition.object.init)
+        .be.calledOnce();
+      should(proxy.pluginStore.add)
+        .be.calledOnce();
+    });
+
+    it('should log an error if plugin initialization fails', () => {
+      let definition = {
+        object: {
+          init: sinon.stub()
+            .throws(new Error('this is not an error'))
+        }
+      };
+      proxy.initPlugin(definition);
+
+      should(proxy.log.info)
+        .be.calledOnce();
+      should(definition.object.init)
+        .be.calledOnce();
+      should(proxy.log.error)
+        .be.calledOnce();
+    });
   });
 
   describe('#initLogger', () => {

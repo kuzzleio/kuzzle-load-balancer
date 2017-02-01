@@ -1,30 +1,4 @@
 {
-  // protocol plugins
-  //
-  // NB: each plugin key MUST match the name defined in its packages.json!
-  // plugin
-  //   version: version of the plugin to install
-  //   [path]: install plugin from local directory or tarball
-  //   [url]: install plugin from a remote location (git url, remote tarball)
-  //   config: the plugin configuration
-  "protocolPlugins": {
-    "kuzzle-plugin-websocket": {
-      "version": "1.0.7",
-      "activated": true,
-      "config": {
-        "port": 7513,
-        "room": "kuzzle"
-      }
-    },
-    "kuzzle-plugin-socketio": {
-      "version": "2.1.0",
-      "activated": true,
-      "config": {
-        "port": 7512,
-        "room": "kuzzle"
-      }
-    }
-  },
   // backend
   //
   // configuration of the communication channel between the proxy and Kuzzle.
