@@ -1,3 +1,0 @@
-[submodule "plugins/available/kuzzle-plugin-socketio"]
-	path = plugins/available/kuzzle-plugin-socketio
-	url = https://github.com/kuzzleio/kuzzle-plugin-socketio.git
