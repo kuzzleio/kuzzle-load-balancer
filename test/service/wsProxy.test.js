@@ -61,25 +61,20 @@ describe('/service/wsProxy', function () {
       logAccess: sinon.spy()
     };
 
-    sendSpy.reset();
-    requestStub.reset();
-
     wsProxy = new WsProxy();
   });
 
+  afterEach(() => {
+    sendSpy.reset();
+    requestStub.reset();
+  });
+
   describe('#init', function () {
-    it('should setup a websocket server', function () {
+    it('should setup a websocket server and add it into the protocol Store', function () {
       let ret = wsProxy.init(proxy);
 
       should(ret).be.eql(wsProxy);
       should(ret.server).be.an.instanceOf(WebSocketServer);
-      should(proxy.protocolStore.add).be.calledOnce();
-      should(proxy.protocolStore.add).be.calledWith('websocket', wsProxy);
-    });
-
-    it('should add the protocol into the Store', function () {
-      wsProxy.init(proxy);
-
       should(proxy.protocolStore.add).be.calledOnce();
       should(proxy.protocolStore.add).be.calledWith('websocket', wsProxy);
     });
