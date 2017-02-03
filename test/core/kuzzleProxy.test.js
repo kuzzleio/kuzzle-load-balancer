@@ -37,6 +37,9 @@ describe('lib/core/KuzzleProxy', () => {
       WsProxy: sinon.spy(function () {
         this.init = sinon.spy();                // eslint-disable-line no-invalid-this
       }),
+      SocketIoProxy: sinon.spy(function () {
+        this.init = sinon.spy();                // eslint-disable-line no-invalid-this
+      }),
       winston: {
         Logger: sinon.spy(),
         transports: {
@@ -80,23 +83,24 @@ describe('lib/core/KuzzleProxy', () => {
     it('should call proper methods in order', () => {
       proxy.initLogger = sinon.spy();
       proxy.installPluginsIfNeeded = sinon.stub().returns(Promise.resolve());
-      proxy.loadPlugins = sinon.spy();
 
       proxy.start();
       should(proxy.initLogger)
         .be.calledOnce();
-      should(proxy.loadPlugins)
-        .be.calledOnce();
       should(proxy.broker.init)
         .be.calledOnce();
       should(proxy.httpProxy.init)
+        .be.calledOnce();
+      should(proxy.wsProxy.init)
+        .be.calledOnce();
+      should(proxy.socketIoProxy.init)
         .be.calledOnce();
       sinon.assert.callOrder(
         proxy.initLogger,
         proxy.broker.init,
         proxy.httpProxy.init,
         proxy.wsProxy.init,
-        proxy.loadPlugins
+        proxy.socketIoProxy.init
       );
     });
 
