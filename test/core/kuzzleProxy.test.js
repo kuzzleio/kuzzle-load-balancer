@@ -104,10 +104,11 @@ describe('lib/core/KuzzleProxy', () => {
       );
     });
 
-    it('should log and rethrow if an error occured', () => {
+    it('should log and rethrow if an error occured', (done) => {
       const error = new Error('test');
 
       proxy.loadPlugins = sinon.stub().throws(error);
+
       proxy.initLogger = () => {
         proxy.loggers.error = {
           error: sinon.spy()
@@ -116,10 +117,12 @@ describe('lib/core/KuzzleProxy', () => {
 
       try {
         proxy.start();
+        done(new Error('Proxy.start() has not thrown any error'));
       } catch (e) {
         should(proxy.log.error)
           .be.calledOnce()
           .be.calledWith(e);
+        done();
       }
     });
   });
