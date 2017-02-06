@@ -7,6 +7,7 @@ const
   EventEmitter = require('events'),
   fakeRequest = {id: 'requestId', aRequest: 'Object'},
   requestStub = sinon.stub().returns({id: 'requestId', aRequest: 'Object'}),
+  emitStub = sinon.stub(),
   clientConnectionStub = function(protocol, ips, headers) {
     return {protocol: protocol, id: 'connectionId', headers: headers};
   },
@@ -19,7 +20,7 @@ const
       emitter.id = 'connectionId';
       emitter.set = () => {};
       emitter.to = sinon.stub().returns({
-        emit: sinon.spy()
+        emit: emitStub
       });
 
       emitter.sockets = { connected: {} };
@@ -41,7 +42,7 @@ describe('/service/socketIoProxy', function () {
     clientSocketMock = {
       id: 'socketId',
       on: onClientSpy,
-      close: sinon.stub(),
+      disconnect: sinon.stub(),
       emit: sinon.stub(),
       join: sinon.stub(),
       leave: sinon.stub(),
@@ -96,7 +97,7 @@ describe('/service/socketIoProxy', function () {
   afterEach(() => {
     requestStub.reset();
     onClientSpy.reset();
-    clientSocketMock.close.reset();
+    clientSocketMock.disconnect.reset();
   });
 
   describe('#init', function () {
@@ -147,9 +148,6 @@ describe('/service/socketIoProxy', function () {
       should(Object.keys(socketIoProxy.sockets).length).be.eql(1);
       should(socketIoProxy.sockets.connectionId)
         .match(clientSocketMock);
-
-      should(Object.keys(socketIoProxy.socketIdToConnectionId).length).be.eql(1);
-      should(socketIoProxy.socketIdToConnectionId.socketId).be.eql('connectionId');
     });
 
     it('should reject and close the socket if creating a connection fails', () => {
@@ -164,7 +162,7 @@ describe('/service/socketIoProxy', function () {
         .be.calledWith('[socketio] Unable to register connection to the proxy\n%s', error.stack);
 
       should(onClientSpy.callCount).be.eql(0);
-      should(clientSocketMock.close.called).be.true();
+      should(clientSocketMock.disconnect.called).be.true();
 
     });
   });
@@ -257,24 +255,24 @@ describe('/service/socketIoProxy', function () {
     beforeEach(() => {
       socketIoProxy.init(proxy);
       socketIoProxy.sockets.connectionId = clientSocketMock;
-      socketIoProxy.socketIdToConnectionId.socketId = 'connectionId';
       proxy.router.execute.reset();
+      emitStub.reset();
     });
 
     it('should do nothing if the data is undefined', function () {
-      socketIoProxy.onClientMessage('socketId', undefined);
+      socketIoProxy.onClientMessage(clientSocketMock, 'connectionId', undefined);
       should(proxy.router.execute.callCount).be.eql(0);
       should(requestStub.callCount).be.eql(0);
     });
 
     it('should do nothing if the client is unknown', function () {
-      socketIoProxy.onClientMessage('badSocketId', JSON.stringify('aPayload'));
+      socketIoProxy.onClientMessage(clientSocketMock, 'badConnectionId', 'aPayload');
       should(proxy.router.execute.callCount).be.eql(0);
       should(requestStub.callCount).be.eql(0);
     });
 
     it('should execute the request if client and packet are ok', function () {
-      socketIoProxy.onClientMessage('socketId', 'aPayload');
+      socketIoProxy.onClientMessage(clientSocketMock, 'connectionId', 'aPayload');
 
       should(requestStub)
         .be.calledOnce()
@@ -293,6 +291,20 @@ describe('/service/socketIoProxy', function () {
       should(socketIoProxy.io.to.firstCall.returnValue.emit)
         .be.calledOnce()
         .be.calledWith('requestId', {requestId: 'foo'});
+    });
+
+    it('should forward an error message to the client if a request cannot be instantiated', () => {
+      requestStub.throws({message: 'error'});
+      socketIoProxy.onClientMessage(clientSocketMock, 'connectionId', {requestId: 'foobar', index: 'foo', controller: 'bar', body: ['this causes an error']});
+      should(requestStub.called).be.true();
+      should(proxy.router.execute.called).be.false();
+      should(emitStub).be.calledOnce();
+      should(emitStub.firstCall.args[1]).match({
+        status: 400,
+        error: {
+          message: 'error'
+        }
+      });
     });
   });
 
@@ -316,22 +328,19 @@ describe('/service/socketIoProxy', function () {
     beforeEach(() => {
       socketIoProxy.init(proxy);
       socketIoProxy.sockets.connectionId = clientSocketMock;
-      socketIoProxy.socketIdToConnectionId.socketId = 'connectionId';
       proxy.router.removeConnection.reset();
     });
 
     it('should do nothing if the client is unknown', function () {
-      socketIoProxy.onClientDisconnection('badSocketId');
+      socketIoProxy.onClientDisconnection('badConnectionId');
       should(proxy.router.removeConnection.callCount).be.eql(0);
       should(socketIoProxy.sockets.connectionId).be.eql(clientSocketMock);
-      should(socketIoProxy.socketIdToConnectionId.socketId).be.eql('connectionId');
     });
 
     it('should remove the client connection if it exists', function () {
-      socketIoProxy.onClientDisconnection('socketId');
+      socketIoProxy.onClientDisconnection('connectionId');
       should(proxy.router.removeConnection.callCount).be.eql(1);
       should(socketIoProxy.sockets.connectionId).be.undefined();
-      should(socketIoProxy.socketIdToConnectionId.socketId).be.undefined();
     });
   });
 
