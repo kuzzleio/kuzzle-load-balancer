@@ -10,15 +10,15 @@ const
   clientConnectionStub = function(protocol, ips, headers) {
     return {protocol: protocol, id: 'id', headers: headers};
   },
-  WsProxy = proxyquire('../../lib/service/WsProxy', {
-    '../core/clientConnection': clientConnectionStub,
+  Websocket = proxyquire('../../../lib/service/protocol/Websocket', {
+    '../../core/clientConnection': clientConnectionStub,
     'kuzzle-common-objects': {Request: requestStub}
   });
 
-describe('/service/wsProxy', function () {
+describe('/service/protocol/Websocket', function () {
   let
     proxy,
-    wsProxy,
+    ws,
     sendSpy = sinon.spy(),
     badId = 'aBadId',
     goodId = 'aGoodId',
@@ -61,7 +61,7 @@ describe('/service/wsProxy', function () {
       logAccess: sinon.spy()
     };
 
-    wsProxy = new WsProxy();
+    ws = new Websocket();
   });
 
   afterEach(() => {
@@ -71,12 +71,12 @@ describe('/service/wsProxy', function () {
 
   describe('#init', function () {
     it('should setup a websocket server and add it into the protocol Store', function () {
-      let ret = wsProxy.init(proxy);
+      let ret = ws.init(proxy);
 
-      should(ret).be.eql(wsProxy);
+      should(ret).be.eql(ws);
       should(ret.server).be.an.instanceOf(WebSocketServer);
       should(proxy.protocolStore.add).be.calledOnce();
-      should(proxy.protocolStore.add).be.calledWith('websocket', wsProxy);
+      should(proxy.protocolStore.add).be.calledWith('websocket', ws);
     });
   });
 
@@ -98,17 +98,17 @@ describe('/service/wsProxy', function () {
       };
 
     beforeEach(() => {
-      wsProxy.init(proxy);
+      ws.init(proxy);
       onClientSpy.reset();
       clientSocketMock.close.reset();
     });
 
     it('should bind proper listeners', () => {
       let
-        clientDisconnectionStub = sinon.stub(wsProxy, 'onClientDisconnection'),
-        clientMessageStub = sinon.stub(wsProxy, 'onClientMessage');
+        clientDisconnectionStub = sinon.stub(ws, 'onClientDisconnection'),
+        clientMessageStub = sinon.stub(ws, 'onClientMessage');
 
-      wsProxy.onConnection(clientSocketMock);
+      ws.onConnection(clientSocketMock);
 
       should(onClientSpy.callCount).be.eql(3);
       should(onClientSpy.firstCall.args[0]).be.eql('close');
@@ -132,9 +132,9 @@ describe('/service/wsProxy', function () {
 
       clientDisconnectionStub.reset();
       clientMessageStub.reset();
-      should(Object.keys(wsProxy.connectionPool).length).be.eql(1);
+      should(Object.keys(ws.connectionPool).length).be.eql(1);
 
-      should(wsProxy.connectionPool.id)
+      should(ws.connectionPool.id)
         .match({
           alive: true,
           socket: clientSocketMock,
@@ -149,7 +149,7 @@ describe('/service/wsProxy', function () {
 
       proxy.router.newConnection = sinon.stub().throws(error);
 
-      wsProxy.onConnection(clientSocketMock);
+      ws.onConnection(clientSocketMock);
 
       should(proxy.log.error)
         .be.calledWith('[websocket] Unable to register connection to the proxy\n%s', error.stack);
@@ -163,11 +163,11 @@ describe('/service/wsProxy', function () {
 
   describe('#broadcast', function () {
     beforeEach(() => {
-      wsProxy.init(proxy);
+      ws.init(proxy);
     });
 
     it('should do nothing if channel does not exist', function () {
-      wsProxy.broadcast({
+      ws.broadcast({
         channels: [badChannel],
         payload: {}
       });
@@ -176,12 +176,12 @@ describe('/service/wsProxy', function () {
 
 
     it('should call send if all conditions are met', function () {
-      wsProxy.channels = {
+      ws.channels = {
         [goodChannel]: {
           [goodId]: true
         }
       };
-      wsProxy.connectionPool = {
+      ws.connectionPool = {
         [goodId]: {
           alive: true,
           socket: {
@@ -190,7 +190,7 @@ describe('/service/wsProxy', function () {
         }
       };
 
-      wsProxy.broadcast({
+      ws.broadcast({
         channels: [goodChannel],
         payload: {some: 'data'}
       });
@@ -201,11 +201,11 @@ describe('/service/wsProxy', function () {
 
   describe('#notify', function () {
     beforeEach(() => {
-      wsProxy.init(proxy);
+      ws.init(proxy);
     });
 
     it('should do nothing if id does not exist', function () {
-      wsProxy.notify({
+      ws.notify({
         id: badId,
         payload: {},
         channels: [goodChannel]
@@ -214,7 +214,7 @@ describe('/service/wsProxy', function () {
     });
 
     it('should call send if all conditions are met', function () {
-      wsProxy.connectionPool = {
+      ws.connectionPool = {
         [goodId]: {
           alive: true,
           socket: {
@@ -223,7 +223,7 @@ describe('/service/wsProxy', function () {
         }
       };
 
-      wsProxy.notify({
+      ws.notify({
         connectionId: goodId,
         channels: [goodChannel],
         payload: {some: 'data'}
@@ -235,21 +235,21 @@ describe('/service/wsProxy', function () {
 
   describe('#joinChannel', function () {
     beforeEach(() => {
-      wsProxy.init(proxy);
+      ws.init(proxy);
     });
 
     it('should do nothing if id does not exist', function () {
-      wsProxy.joinChannel({
+      ws.joinChannel({
         connectionId: badId
       });
-      should(wsProxy.channels).be.deepEqual({});
+      should(ws.channels).be.deepEqual({});
     });
 
     it('should add clientId to the channel if conditions are met', function () {
-      wsProxy.channels = {
+      ws.channels = {
         [goodChannel]: { count: 0 }
       };
-      wsProxy.connectionPool = {
+      ws.connectionPool = {
         [goodId]: {
           alive: true,
           socket: {
@@ -259,18 +259,18 @@ describe('/service/wsProxy', function () {
         }
       };
 
-      wsProxy.joinChannel({
+      ws.joinChannel({
         connectionId: goodId,
         channel: goodChannel
       });
 
-      should(wsProxy.channels).be.deepEqual({
+      should(ws.channels).be.deepEqual({
         [goodChannel]: { [goodId]: true, count: 1 }
       });
     });
 
     it('should create the channel entry add clientId to the channel if conditions are met and channel did not exist before', function () {
-      wsProxy.connectionPool = {
+      ws.connectionPool = {
         [goodId]: {
           alive: true,
           socket: {
@@ -279,11 +279,11 @@ describe('/service/wsProxy', function () {
           channels: []
         }
       };
-      wsProxy.joinChannel({
+      ws.joinChannel({
         connectionId: goodId,
         channel: goodChannel
       });
-      should(wsProxy.channels).be.deepEqual({
+      should(ws.channels).be.deepEqual({
         [goodChannel]: { [goodId]: true, count: 1 }
       });
     });
@@ -291,30 +291,30 @@ describe('/service/wsProxy', function () {
 
   describe('#leaveChannel', function () {
     beforeEach(() => {
-      wsProxy.init(proxy);
+      ws.init(proxy);
     });
 
     it('should do nothing if id does not exist', function () {
-      wsProxy.leaveChannel({
+      ws.leaveChannel({
         id: badId
       });
-      should(wsProxy.channels).be.deepEqual({});
+      should(ws.channels).be.deepEqual({});
     });
 
     it('should do nothing if channel does not exist', function () {
-      wsProxy.connectionPool = {
+      ws.connectionPool = {
         [goodId]:  {
           alive: true
         }
       };
-      wsProxy.leaveChannel({
+      ws.leaveChannel({
         connectionId: goodId
       });
-      should(wsProxy.channels).be.deepEqual({});
+      should(ws.channels).be.deepEqual({});
     });
 
     it('should do nothing if id is not in channel', function () {
-      wsProxy.connectionPool = {
+      ws.connectionPool = {
         [goodId]: {
           alive: true,
           socket: {
@@ -323,20 +323,20 @@ describe('/service/wsProxy', function () {
           channels: []
         }
       };
-      wsProxy.channels = {
+      ws.channels = {
         [goodChannel]: {[badId]: true }
       };
-      wsProxy.leaveChannel({
+      ws.leaveChannel({
         connectionId: goodId,
         channel: goodChannel
       });
-      should(wsProxy.channels).be.deepEqual({
+      should(ws.channels).be.deepEqual({
         [goodChannel]: {[badId]: true}
       });
     });
 
     it('should remove id from channel if conditions are met', function () {
-      wsProxy.connectionPool = {
+      ws.connectionPool = {
         [goodId]: {
           alive: true,
           socket: {
@@ -345,22 +345,22 @@ describe('/service/wsProxy', function () {
           channels: [goodChannel]
         }
       };
-      wsProxy.channels = {
+      ws.channels = {
         [goodChannel]: {[goodId]: true, [badId]: true, count: 2}
       };
-      wsProxy.leaveChannel({
+      ws.leaveChannel({
         connectionId: goodId,
         channel: goodChannel
       });
 
-      should(wsProxy.channels).be.deepEqual({
+      should(ws.channels).be.deepEqual({
         [goodChannel]: {[badId]: true, count: 1}
       });
-      should(wsProxy.connectionPool[goodId].channels.length).be.eql(0);
+      should(ws.connectionPool[goodId].channels.length).be.eql(0);
     });
 
     it('should remove id from channel if conditions are met and remove channel if it is empty', function () {
-      wsProxy.connectionPool = {
+      ws.connectionPool = {
         [goodId]: {
           alive: true,
           socket: {
@@ -369,47 +369,47 @@ describe('/service/wsProxy', function () {
           channels: []
         }
       };
-      wsProxy.channels = {
+      ws.channels = {
         [goodChannel]: {[goodId]: true}
       };
-      wsProxy.leaveChannel({
+      ws.leaveChannel({
         connectionId: goodId,
         channel: goodChannel
       });
-      should(wsProxy.channels).be.deepEqual({});
+      should(ws.channels).be.deepEqual({});
     });
   });
 
   describe('#onMessage', function () {
     beforeEach(() => {
-      wsProxy.init(proxy);
+      ws.init(proxy);
       proxy.router.execute.reset();
     });
 
     it('should do nothing if the data is undefined', function () {
-      wsProxy.connectionPool = {
+      ws.connectionPool = {
         [goodId]: {
           alive: true
         }
       };
-      wsProxy.onClientMessage(badId, undefined);
+      ws.onClientMessage(badId, undefined);
       should(proxy.router.execute.callCount).be.eql(0);
       should(requestStub.callCount).be.eql(0);
     });
 
     it('should do nothing if the client is unknown', function () {
-      wsProxy.connectionPool = {
+      ws.connectionPool = {
         [goodId]: {
           alive: true
         }
       };
-      wsProxy.onClientMessage(badId, JSON.stringify('aPayload'));
+      ws.onClientMessage(badId, JSON.stringify('aPayload'));
       should(proxy.router.execute.callCount).be.eql(0);
       should(requestStub.callCount).be.eql(0);
     });
 
     it('should execute the request if client and packet are ok', function () {
-      wsProxy.connectionPool = {
+      ws.connectionPool = {
         [goodId]: {
           alive: true,
           connection: 'aConnection',
@@ -420,7 +420,7 @@ describe('/service/wsProxy', function () {
         }
       };
 
-      wsProxy.onClientMessage(goodId, JSON.stringify('aPayload'));
+      ws.onClientMessage(goodId, JSON.stringify('aPayload'));
 
       should(requestStub)
         .be.calledOnce()
@@ -442,7 +442,7 @@ describe('/service/wsProxy', function () {
     });
 
     it('should forward an exception to the client if the incoming message is not in JSON format', () => {
-      wsProxy.connectionPool = {
+      ws.connectionPool = {
         [goodId]: {
           alive: true,
           connection: 'aConnection',
@@ -453,7 +453,7 @@ describe('/service/wsProxy', function () {
         }
       };
 
-      wsProxy.onClientMessage(goodId, 'foobar');
+      ws.onClientMessage(goodId, 'foobar');
       should(requestStub.called).be.false();
       should(proxy.router.execute.called).be.false();
       should(sendSpy).be.calledOnce();
@@ -461,7 +461,7 @@ describe('/service/wsProxy', function () {
     });
 
     it('should forward an error message to the client if a request cannot be instantiated', () => {
-      wsProxy.connectionPool = {
+      ws.connectionPool = {
         [goodId]: {
           alive: true,
           connection: 'aConnection',
@@ -473,7 +473,7 @@ describe('/service/wsProxy', function () {
       };
 
       requestStub.throws({message: 'error'});
-      wsProxy.onClientMessage(goodId, JSON.stringify({requestId: 'foobar', index: 'foo', controller: 'bar', body: ['this causes an error']}));
+      ws.onClientMessage(goodId, JSON.stringify({requestId: 'foobar', index: 'foo', controller: 'bar', body: ['this causes an error']}));
       should(requestStub.called).be.true();
       should(proxy.router.execute.called).be.false();
       should(sendSpy.calledOnce).be.true();
@@ -489,13 +489,13 @@ describe('/service/wsProxy', function () {
 
   describe('#onServerError', function () {
     beforeEach(() => {
-      wsProxy.init(proxy);
+      ws.init(proxy);
     });
 
     it('should log the error', () => {
       const error = new Error('test');
 
-      wsProxy.onServerError(error);
+      ws.onServerError(error);
 
       should(proxy.log.error)
         .be.calledOnce()
@@ -505,33 +505,33 @@ describe('/service/wsProxy', function () {
 
   describe('#onClientDisconnection', function () {
     beforeEach(() => {
-      wsProxy.init(proxy);
+      ws.init(proxy);
       proxy.router.removeConnection.reset();
     });
 
     it('should do nothing if the client is unknown', function () {
-      wsProxy.channels = {
+      ws.channels = {
         [goodChannel]: []
       };
-      wsProxy.connectionPool = {
+      ws.connectionPool = {
         [goodId]: {
           alive: true
         }
       };
-      wsProxy.socketPool = {
+      ws.socketPool = {
         [goodId]: true
       };
-      wsProxy.onClientDisconnection(badId);
+      ws.onClientDisconnection(badId);
       should(proxy.router.removeConnection.callCount).be.eql(0);
-      should(wsProxy.connectionPool[goodId].alive).be.true();
-      should(wsProxy.socketPool[goodId]).be.true();
+      should(ws.connectionPool[goodId].alive).be.true();
+      should(ws.socketPool[goodId]).be.true();
     });
 
     it('should remove the client connection if it exists', function () {
-      wsProxy.channels = {
+      ws.channels = {
         [goodChannel]: {[goodId]: true, 'foobar': true, count: 2}
       };
-      wsProxy.connectionPool = {
+      ws.connectionPool = {
         [goodId]: {
           alive: true,
           connection: 'aConnection',
@@ -542,17 +542,17 @@ describe('/service/wsProxy', function () {
         }
       };
 
-      wsProxy.onClientDisconnection(goodId);
+      ws.onClientDisconnection(goodId);
       should(proxy.router.removeConnection.callCount).be.eql(1);
-      should(wsProxy.connectionPool).be.deepEqual({});
-      should(wsProxy.channels).be.deepEqual({[goodChannel]: {foobar: true, count: 1}});
+      should(ws.connectionPool).be.deepEqual({});
+      should(ws.channels).be.deepEqual({[goodChannel]: {foobar: true, count: 1}});
     });
 
     it('should remove a channel entirely if the last connection leaves', function () {
-      wsProxy.channels = {
+      ws.channels = {
         [goodChannel]: {[goodId]: true}
       };
-      wsProxy.connectionPool = {
+      ws.connectionPool = {
         [goodId]: {
           alive: true,
           connection: 'aConnection',
@@ -563,28 +563,28 @@ describe('/service/wsProxy', function () {
         }
       };
 
-      wsProxy.onClientDisconnection(goodId);
+      ws.onClientDisconnection(goodId);
       should(proxy.router.removeConnection.callCount).be.eql(1);
-      should(wsProxy.connectionPool).be.deepEqual({});
-      should(wsProxy.channels).be.deepEqual({});
+      should(ws.connectionPool).be.deepEqual({});
+      should(ws.channels).be.deepEqual({});
     });
   });
 
   describe('#disconnect', () => {
     beforeEach(() => {
-      wsProxy.init(proxy);
+      ws.init(proxy);
     });
 
     it('should close the client connection', () => {
-      wsProxy.connectionPool.id = {
+      ws.connectionPool.id = {
         socket: {
           close: sinon.spy()
         }
       };
 
-      wsProxy.disconnect('id');
+      ws.disconnect('id');
 
-      should(wsProxy.connectionPool.id.socket.close)
+      should(ws.connectionPool.id.socket.close)
         .be.calledOnce()
         .be.calledWith('CLOSEDONREQUEST', 'Connection closed by remote host');
     });

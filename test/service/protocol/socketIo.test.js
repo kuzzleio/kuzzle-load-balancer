@@ -11,8 +11,8 @@ const
   clientConnectionStub = function(protocol, ips, headers) {
     return {protocol: protocol, id: 'connectionId', headers: headers};
   },
-  SocketIoProxy = proxyquire('../../lib/service/SocketIoProxy', {
-    '../core/clientConnection': clientConnectionStub,
+  SocketIo = proxyquire('../../../lib/service/protocol/SocketIo', {
+    '../../core/clientConnection': clientConnectionStub,
     'kuzzle-common-objects': {Request: requestStub},
     'socket.io': () => {
       const emitter = new EventEmitter();
@@ -34,10 +34,10 @@ const
     }
   });
 
-describe('/service/socketIoProxy', function () {
+describe('/service/protocol/SocketIo', function () {
   let
     proxy,
-    socketIoProxy,
+    io,
     onClientSpy = sinon.stub(),
     clientSocketMock = {
       id: 'socketId',
@@ -91,7 +91,7 @@ describe('/service/socketIoProxy', function () {
       logAccess: sinon.spy()
     };
 
-    socketIoProxy = new SocketIoProxy();
+    io = new SocketIo();
   });
 
   afterEach(() => {
@@ -102,26 +102,26 @@ describe('/service/socketIoProxy', function () {
 
   describe('#init', function () {
     it('should setup a socketIo server and add it into the protocol Store', function () {
-      let ret = socketIoProxy.init(proxy);
+      let ret = io.init(proxy);
 
-      should(ret).be.eql(socketIoProxy);
+      should(ret).be.eql(io);
       should(ret.io).be.an.instanceOf(EventEmitter);
       should(proxy.protocolStore.add).be.calledOnce();
-      should(proxy.protocolStore.add).be.calledWith('socketio', socketIoProxy);
+      should(proxy.protocolStore.add).be.calledWith('socketio', io);
     });
   });
 
   describe('#onConnection', function () {
     beforeEach(() => {
-      socketIoProxy.init(proxy);
+      io.init(proxy);
     });
 
     it('should bind proper listeners', () => {
       let
-        clientDisconnectionStub = sinon.stub(socketIoProxy, 'onClientDisconnection'),
-        clientMessageStub = sinon.stub(socketIoProxy, 'onClientMessage');
+        clientDisconnectionStub = sinon.stub(io, 'onClientDisconnection'),
+        clientMessageStub = sinon.stub(io, 'onClientMessage');
 
-      socketIoProxy.onConnection(clientSocketMock);
+      io.onConnection(clientSocketMock);
 
       should(onClientSpy.callCount).be.eql(3);
       should(onClientSpy.firstCall.args[0]).be.eql('disconnect');
@@ -145,8 +145,8 @@ describe('/service/socketIoProxy', function () {
 
       clientDisconnectionStub.reset();
       clientMessageStub.reset();
-      should(Object.keys(socketIoProxy.sockets).length).be.eql(1);
-      should(socketIoProxy.sockets.connectionId)
+      should(Object.keys(io.sockets).length).be.eql(1);
+      should(io.sockets.connectionId)
         .match(clientSocketMock);
     });
 
@@ -156,7 +156,7 @@ describe('/service/socketIoProxy', function () {
 
       proxy.router.newConnection = sinon.stub().throws(error);
 
-      socketIoProxy.onConnection(clientSocketMock);
+      io.onConnection(clientSocketMock);
 
       should(proxy.log.error)
         .be.calledWith('[socketio] Unable to register connection to the proxy\n%s', error.stack);
@@ -169,7 +169,7 @@ describe('/service/socketIoProxy', function () {
 
   describe('#broadcast', function () {
     beforeEach(() => {
-      socketIoProxy.init(proxy);
+      io.init(proxy);
     });
 
     it('should broadcast a message correctly', function () {
@@ -177,13 +177,13 @@ describe('/service/socketIoProxy', function () {
         channel = 'foobar',
         payload = {foo: 'bar'};
 
-      socketIoProxy.broadcast({channels: [channel],payload});
+      io.broadcast({channels: [channel],payload});
 
-      should(socketIoProxy.io.to)
+      should(io.io.to)
         .be.calledOnce()
         .be.calledWith(channel);
 
-      should(socketIoProxy.io.to.firstCall.returnValue.emit)
+      should(io.io.to.firstCall.returnValue.emit)
         .be.calledOnce()
         .be.calledWith(channel, payload);
     });
@@ -191,15 +191,15 @@ describe('/service/socketIoProxy', function () {
 
   describe('#notify', function () {
     beforeEach(() => {
-      socketIoProxy.init(proxy);
+      io.init(proxy);
     });
 
     it('should notify a client correctly', function () {
       const payload = {foo: 'bar'};
 
-      socketIoProxy.sockets.connectionId = clientSocketMock;
+      io.sockets.connectionId = clientSocketMock;
 
-      socketIoProxy.notify({
+      io.notify({
         connectionId: 'connectionId',
         channels: ['foobar'],
         payload
@@ -213,37 +213,37 @@ describe('/service/socketIoProxy', function () {
 
   describe('#joinChannel', function () {
     beforeEach(() => {
-      socketIoProxy.init(proxy);
-      socketIoProxy.sockets.connectionId = clientSocketMock;
+      io.init(proxy);
+      io.sockets.connectionId = clientSocketMock;
       clientSocketMock.join.reset();
     });
 
     it('should link an id with a channel', function () {
-      socketIoProxy.joinChannel({connectionId: 'connectionId', channel: 'foo'});
+      io.joinChannel({connectionId: 'connectionId', channel: 'foo'});
       should(clientSocketMock.join)
         .be.calledOnce()
         .be.calledWith('foo');
     });
 
     it('should do nothing if the id is unknown', function () {
-      socketIoProxy.joinChannel({connectionId: 'some other id', channel: 'foo'});
+      io.joinChannel({connectionId: 'some other id', channel: 'foo'});
       should(clientSocketMock.join).have.callCount(0);
     });
   });
 
   describe('#leaveChannel', function () {
     beforeEach(() => {
-      socketIoProxy.init(proxy);
-      socketIoProxy.sockets.connectionId = clientSocketMock;
+      io.init(proxy);
+      io.sockets.connectionId = clientSocketMock;
     });
 
     it('should do nothing if id does not exist', function () {
-      socketIoProxy.leaveChannel({connectionId: 'some other id', channel: 'foo'});
+      io.leaveChannel({connectionId: 'some other id', channel: 'foo'});
       should(clientSocketMock.leave).have.callCount(0);
     });
 
     it('should remove id from channel if conditions are met', function () {
-      socketIoProxy.leaveChannel({connectionId: 'connectionId', channel: 'foo'});
+      io.leaveChannel({connectionId: 'connectionId', channel: 'foo'});
 
       should(clientSocketMock.leave)
         .be.calledOnce()
@@ -253,26 +253,26 @@ describe('/service/socketIoProxy', function () {
 
   describe('#onMessage', function () {
     beforeEach(() => {
-      socketIoProxy.init(proxy);
-      socketIoProxy.sockets.connectionId = clientSocketMock;
+      io.init(proxy);
+      io.sockets.connectionId = clientSocketMock;
       proxy.router.execute.reset();
       emitStub.reset();
     });
 
     it('should do nothing if the data is undefined', function () {
-      socketIoProxy.onClientMessage(clientSocketMock, 'connectionId', undefined);
+      io.onClientMessage(clientSocketMock, 'connectionId', undefined);
       should(proxy.router.execute.callCount).be.eql(0);
       should(requestStub.callCount).be.eql(0);
     });
 
     it('should do nothing if the client is unknown', function () {
-      socketIoProxy.onClientMessage(clientSocketMock, 'badConnectionId', 'aPayload');
+      io.onClientMessage(clientSocketMock, 'badConnectionId', 'aPayload');
       should(proxy.router.execute.callCount).be.eql(0);
       should(requestStub.callCount).be.eql(0);
     });
 
     it('should execute the request if client and packet are ok', function () {
-      socketIoProxy.onClientMessage(clientSocketMock, 'connectionId', 'aPayload');
+      io.onClientMessage(clientSocketMock, 'connectionId', 'aPayload');
 
       should(requestStub)
         .be.calledOnce()
@@ -285,17 +285,17 @@ describe('/service/socketIoProxy', function () {
         .be.calledOnce()
         .be.calledWith(fakeRequest);
 
-      should(socketIoProxy.io.to)
+      should(io.io.to)
         .be.calledOnce()
         .be.calledWith(clientSocketMock.id);
-      should(socketIoProxy.io.to.firstCall.returnValue.emit)
+      should(io.io.to.firstCall.returnValue.emit)
         .be.calledOnce()
         .be.calledWith('requestId', {requestId: 'foo'});
     });
 
     it('should forward an error message to the client if a request cannot be instantiated', () => {
       requestStub.throws({message: 'error'});
-      socketIoProxy.onClientMessage(clientSocketMock, 'connectionId', {requestId: 'foobar', index: 'foo', controller: 'bar', body: ['this causes an error']});
+      io.onClientMessage(clientSocketMock, 'connectionId', {requestId: 'foobar', index: 'foo', controller: 'bar', body: ['this causes an error']});
       should(requestStub.called).be.true();
       should(proxy.router.execute.called).be.false();
       should(emitStub).be.calledOnce();
@@ -310,13 +310,13 @@ describe('/service/socketIoProxy', function () {
 
   describe('#onServerError', function () {
     beforeEach(() => {
-      socketIoProxy.init(proxy);
+      io.init(proxy);
     });
 
     it('should log the error', () => {
       const error = new Error('test');
 
-      socketIoProxy.onServerError(error);
+      io.onServerError(error);
 
       should(proxy.log.error)
         .be.calledOnce()
@@ -326,37 +326,37 @@ describe('/service/socketIoProxy', function () {
 
   describe('#onClientDisconnection', function () {
     beforeEach(() => {
-      socketIoProxy.init(proxy);
-      socketIoProxy.sockets.connectionId = clientSocketMock;
+      io.init(proxy);
+      io.sockets.connectionId = clientSocketMock;
       proxy.router.removeConnection.reset();
     });
 
     it('should do nothing if the client is unknown', function () {
-      socketIoProxy.onClientDisconnection('badConnectionId');
+      io.onClientDisconnection('badConnectionId');
       should(proxy.router.removeConnection.callCount).be.eql(0);
-      should(socketIoProxy.sockets.connectionId).be.eql(clientSocketMock);
+      should(io.sockets.connectionId).be.eql(clientSocketMock);
     });
 
     it('should remove the client connection if it exists', function () {
-      socketIoProxy.onClientDisconnection('connectionId');
+      io.onClientDisconnection('connectionId');
       should(proxy.router.removeConnection.callCount).be.eql(1);
-      should(socketIoProxy.sockets.connectionId).be.undefined();
+      should(io.sockets.connectionId).be.undefined();
     });
   });
 
   describe('#disconnect', () => {
     beforeEach(() => {
-      socketIoProxy.init(proxy);
+      io.init(proxy);
     });
 
     it('should close the client socket', () => {
-      socketIoProxy.sockets.connectionId = {
+      io.sockets.connectionId = {
         disconnect: sinon.spy()
       };
 
-      socketIoProxy.disconnect('connectionId');
+      io.disconnect('connectionId');
 
-      should(socketIoProxy.sockets.connectionId.disconnect)
+      should(io.sockets.connectionId.disconnect)
         .be.calledOnce();
     });
 

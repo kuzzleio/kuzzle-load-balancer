@@ -34,10 +34,10 @@ describe('lib/core/KuzzleProxy', () => {
       HttpProxy: sinon.spy(function () {
         this.init = sinon.spy();                // eslint-disable-line no-invalid-this
       }),
-      WsProxy: sinon.spy(function () {
+      Websocket: sinon.spy(function () {
         this.init = sinon.spy();                // eslint-disable-line no-invalid-this
       }),
-      SocketIoProxy: sinon.spy(function () {
+      SocketIo: sinon.spy(function () {
         this.init = sinon.spy();                // eslint-disable-line no-invalid-this
       }),
       winston: {
@@ -91,16 +91,16 @@ describe('lib/core/KuzzleProxy', () => {
         .be.calledOnce();
       should(proxy.httpProxy.init)
         .be.calledOnce();
-      should(proxy.wsProxy.init)
+      should(proxy.ws.init)
         .be.calledOnce();
-      should(proxy.socketIoProxy.init)
+      should(proxy.io.init)
         .be.calledOnce();
       sinon.assert.callOrder(
         proxy.initLogger,
         proxy.broker.init,
         proxy.httpProxy.init,
-        proxy.wsProxy.init,
-        proxy.socketIoProxy.init
+        proxy.ws.init,
+        proxy.io.init
       );
     });
 
