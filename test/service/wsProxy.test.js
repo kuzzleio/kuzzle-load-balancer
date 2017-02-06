@@ -459,6 +459,32 @@ describe('/service/wsProxy', function () {
       should(sendSpy).be.calledOnce();
       should(JSON.parse(sendSpy.firstCall.args[0]).status).be.equal(400);
     });
+
+    it('should forward an error message to the client if a request cannot be instantiated', () => {
+      wsProxy.connectionPool = {
+        [goodId]: {
+          alive: true,
+          connection: 'aConnection',
+          socket: {
+            send: sendSpy
+          },
+          channels: []
+        }
+      };
+
+      requestStub.throws({message: 'error'});
+      wsProxy.onClientMessage(goodId, JSON.stringify({requestId: 'foobar', index: 'foo', controller: 'bar', body: ['this causes an error']}));
+      should(requestStub.called).be.true();
+      should(proxy.router.execute.called).be.false();
+      should(sendSpy.calledOnce).be.true();
+      should(JSON.parse(sendSpy.firstCall.args[0])).match({
+        status: 400,
+        error: {
+          message: 'error'
+        },
+        room: 'foobar'
+      });
+    });
   });
 
   describe('#onServerError', function () {
