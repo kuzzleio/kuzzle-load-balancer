@@ -4,7 +4,6 @@ const
   proxyquire = require('proxyquire'),
   should = require('should'),
   sinon = require('sinon'),
-  WebSocketServer = require('ws').Server,
   fakeRequest = {aRequest: 'Object'},
   requestStub = sinon.stub().returns({aRequest: 'Object'}),
   clientConnectionStub = function(protocol, ips, headers) {
@@ -54,7 +53,11 @@ describe('/service/protocol/Websocket', function () {
         removeConnection: sinon.stub().returns(Promise.resolve({a: 'connection'})),
         execute: sinon.stub().yields({requestId: 'foo', content: {requestId: 'foo'}})
       },
-      config: {},
+      config: {
+        websocket: {
+          enabled: true
+        }
+      },
       log: {
         error: sinon.spy()
       },
@@ -71,10 +74,8 @@ describe('/service/protocol/Websocket', function () {
 
   describe('#init', function () {
     it('should setup a websocket server and add it into the protocol Store', function () {
-      let ret = ws.init(proxy);
+      ws.init(proxy);
 
-      should(ret).be.eql(ws);
-      should(ret.server).be.an.instanceOf(WebSocketServer);
       should(proxy.protocolStore.add).be.calledOnce();
       should(proxy.protocolStore.add).be.calledWith('websocket', ws);
     });

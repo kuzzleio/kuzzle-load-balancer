@@ -84,7 +84,11 @@ describe('/service/protocol/SocketIo', function () {
         removeConnection: sinon.stub().returns(Promise.resolve({a: 'connection'})),
         execute: sinon.stub().yields({requestId: 'foo', content: {requestId: 'foo'}})
       },
-      config: {},
+      config: {
+        socketio: {
+          enabled: true
+        }
+      },
       log: {
         error: sinon.spy()
       },
@@ -102,10 +106,8 @@ describe('/service/protocol/SocketIo', function () {
 
   describe('#init', function () {
     it('should setup a socketIo server and add it into the protocol Store', function () {
-      let ret = io.init(proxy);
+      io.init(proxy);
 
-      should(ret).be.eql(io);
-      should(ret.io).be.an.instanceOf(EventEmitter);
       should(proxy.protocolStore.add).be.calledOnce();
       should(proxy.protocolStore.add).be.calledWith('socketio', io);
     });
