@@ -45,7 +45,9 @@
   // configuration of the socketio protocol for Kuzzle (uses http server)
   // options
   //   enabled: true/false. Default to "true"
+  //   orgins: Sets the allowed origins. Default to any origins being allowed
   "socketio": {
-    "enabled": true
+    "enabled": true,
+    "origins": "*:*"
   }
 }
