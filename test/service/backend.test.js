@@ -25,8 +25,8 @@ describe('service/Backend', () => {
         error: sinon.spy(),
         warn: sinon.spy()
       },
-      pluginStore: {
-        getByProtocol: sinon.stub().returns({
+      protocolStore: {
+        get: sinon.stub().returns({
           joinChannel: sinon.spy(),
           leaveChannel: sinon.spy(),
           notify: sinon.spy()
@@ -170,6 +170,9 @@ describe('service/Backend', () => {
   describe('#room actions', () => {
     beforeEach(() => {
       backend.backendRequestStore.resolve = sinon.spy();
+      proxy.clientConnectionStore.get.returns({
+        protocol: 'dummy'
+      });
     });
 
     it('#response', () => {
@@ -202,10 +205,7 @@ describe('service/Backend', () => {
         },
         error = new Error('test');
 
-      proxy.clientConnectionStore.get.returns({
-        protocol: 'protocol'
-      });
-      proxy.pluginStore.getByProtocol.returns({
+      proxy.protocolStore.get.returns({
         joinChannel: sinon.stub().throws(error)
       });
 
@@ -213,7 +213,7 @@ describe('service/Backend', () => {
 
       should(proxy.log.error)
         .be.calledOnce()
-        .be.calledWith('[Join Channel] Plugin protocol failed: test');
+        .be.calledWith('[Join Channel] Protocol dummy failed: test');
     });
 
     it('#joinChannel', () => {
@@ -221,16 +221,13 @@ describe('service/Backend', () => {
         connectionId: 'id'
       };
 
-      proxy.clientConnectionStore.get.returns({
-        protocol: 'protocol'
-      });
       backend.onMessageRooms.joinChannel(data);
 
-      should(proxy.pluginStore.getByProtocol)
+      should(proxy.protocolStore.get)
         .be.calledOnce()
-        .be.calledWith('protocol');
+        .be.calledWith('dummy');
 
-      should(proxy.pluginStore.getByProtocol.firstCall.returnValue.joinChannel)
+      should(proxy.protocolStore.get.firstCall.returnValue.joinChannel)
         .be.calledOnce()
         .be.calledWith(data);
 
@@ -243,16 +240,13 @@ describe('service/Backend', () => {
         },
         error = new Error('test');
 
-      proxy.clientConnectionStore.get.returns({
-        protocol: 'protocol'
-      });
-      proxy.pluginStore.getByProtocol.throws(error);
+      proxy.protocolStore.get.throws(error);
 
       backend.onMessageRooms.leaveChannel(data);
 
       should(proxy.log.error)
         .be.calledOnce()
-        .be.calledWith('[Leave Channel] Plugin undefined failed: test');
+        .be.calledWith('[Leave Channel] Protocol undefined failed: test');
     });
 
     it('#leaveChannel', () => {
@@ -260,13 +254,9 @@ describe('service/Backend', () => {
         connectionId: 'id'
       };
 
-      proxy.clientConnectionStore.get.returns({
-        protocol: 'protocol'
-      });
-
       backend.onMessageRooms.leaveChannel(data);
 
-      should(proxy.pluginStore.getByProtocol.firstCall.returnValue.leaveChannel)
+      should(proxy.protocolStore.get.firstCall.returnValue.leaveChannel)
         .be.calledOnce()
         .be.calledWith(data);
     });
@@ -278,16 +268,13 @@ describe('service/Backend', () => {
         },
         error = new Error('test');
 
-      proxy.clientConnectionStore.get.returns({
-        protocol: 'protocol'
-      });
-      proxy.pluginStore.getByProtocol.throws(error);
+      proxy.protocolStore.get.throws(error);
 
       backend.onMessageRooms.notify(data);
 
       should(proxy.log.error)
         .be.calledOnce()
-        .be.calledWith('[Notify] Plugin protocol failed: test\nNotification data:\n%s');
+        .be.calledWith('[Notify] Protocol dummy failed: test\nNotification data:\n%s');
     });
 
     it('#notify', () => {
@@ -295,13 +282,9 @@ describe('service/Backend', () => {
         connectionId: 'id'
       };
 
-      proxy.clientConnectionStore.get.returns({
-        protocol: 'protocol'
-      });
-
       backend.onMessageRooms.notify(data);
 
-      should(proxy.pluginStore.getByProtocol.firstCall.returnValue.notify)
+      should(proxy.protocolStore.get.firstCall.returnValue.notify)
         .be.calledOnce()
         .be.calledWith(data);
     });
@@ -313,10 +296,7 @@ describe('service/Backend', () => {
         },
         error = new Error('test');
 
-      proxy.clientConnectionStore.get.returns({
-        protocol: 'protocol'
-      });
-      proxy.pluginStore.plugins = {
+      proxy.protocolStore.protocols = {
         foo: {
           broadcast: sinon.spy()
         },
@@ -329,7 +309,7 @@ describe('service/Backend', () => {
 
       should(proxy.log.error)
         .be.calledOnce()
-        .be.calledWith('[Broadcast] Plugin undefined failed: test\nNotification data:\n%s');
+        .be.calledWith('[Broadcast] Protocol bar failed: test\nNotification data:\n%s');
     });
 
     it('#broadcast', () => {
@@ -337,10 +317,7 @@ describe('service/Backend', () => {
         connectionId: 'id'
       };
 
-      proxy.clientConnectionStore.get.returns({
-        protocol: 'protocol'
-      });
-      proxy.pluginStore.plugins = {
+      proxy.protocolStore.protocols = {
         foo: {
           broadcast: sinon.spy()
         },
@@ -351,10 +328,10 @@ describe('service/Backend', () => {
 
       backend.onMessageRooms.broadcast(data);
 
-      should(proxy.pluginStore.plugins.foo.broadcast)
+      should(proxy.protocolStore.protocols.foo.broadcast)
         .be.calledOnce()
         .be.calledWith(data);
-      should(proxy.pluginStore.plugins.bar.broadcast)
+      should(proxy.protocolStore.protocols.bar.broadcast)
         .be.calledOnce()
         .be.calledWith(data);
     });

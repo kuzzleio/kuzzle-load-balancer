@@ -34,6 +34,12 @@ describe('lib/core/KuzzleProxy', () => {
       HttpProxy: sinon.spy(function () {
         this.init = sinon.spy();                // eslint-disable-line no-invalid-this
       }),
+      Websocket: sinon.spy(function () {
+        this.init = sinon.spy();                // eslint-disable-line no-invalid-this
+      }),
+      SocketIo: sinon.spy(function () {
+        this.init = sinon.spy();                // eslint-disable-line no-invalid-this
+      }),
       winston: {
         Logger: sinon.spy(),
         transports: {
@@ -77,29 +83,32 @@ describe('lib/core/KuzzleProxy', () => {
     it('should call proper methods in order', () => {
       proxy.initLogger = sinon.spy();
       proxy.installPluginsIfNeeded = sinon.stub().returns(Promise.resolve());
-      proxy.loadPlugins = sinon.spy();
 
       proxy.start();
       should(proxy.initLogger)
-        .be.calledOnce();
-      should(proxy.loadPlugins)
         .be.calledOnce();
       should(proxy.broker.init)
         .be.calledOnce();
       should(proxy.httpProxy.init)
         .be.calledOnce();
+      should(proxy.ws.init)
+        .be.calledOnce();
+      should(proxy.io.init)
+        .be.calledOnce();
       sinon.assert.callOrder(
         proxy.initLogger,
-        proxy.loadPlugins,
         proxy.broker.init,
-        proxy.httpProxy.init
+        proxy.httpProxy.init,
+        proxy.ws.init,
+        proxy.io.init
       );
     });
 
-    it('should log and rethrow if an error occured', () => {
+    it('should log and rethrow if an error occured', (done) => {
       const error = new Error('test');
 
       proxy.loadPlugins = sinon.stub().throws(error);
+
       proxy.initLogger = () => {
         proxy.loggers.error = {
           error: sinon.spy()
@@ -108,10 +117,12 @@ describe('lib/core/KuzzleProxy', () => {
 
       try {
         proxy.start();
+        done(new Error('Proxy.start() has not thrown any error'));
       } catch (e) {
         should(proxy.log.error)
           .be.calledOnce()
           .be.calledWith(e);
+        done();
       }
     });
   });
@@ -198,7 +209,7 @@ describe('lib/core/KuzzleProxy', () => {
 
   describe('#initPlugin', () => {
     it('should initialize the plugin', () => {
-      sinon.stub(proxy.pluginStore, 'add');
+      sinon.stub(proxy.protocolStore, 'add');
       let definition = {
         object: {
           init: sinon.spy()
@@ -210,7 +221,7 @@ describe('lib/core/KuzzleProxy', () => {
         .be.calledOnce();
       should(definition.object.init)
         .be.calledOnce();
-      should(proxy.pluginStore.add)
+      should(proxy.protocolStore.add)
         .be.calledOnce();
     });
 

@@ -23,6 +23,7 @@ describe('/service/httpProxy', () => {
       },
       config: {
         http: {
+          enabled: true,
           maxRequestSize: '100kb',
           maxFileSize: '100kb',
           port: 1234,
