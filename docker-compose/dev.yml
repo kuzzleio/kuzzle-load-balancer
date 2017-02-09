@@ -9,7 +9,7 @@ services:
       - "./scripts/run-dev.sh:/run.sh"
       - "./config/pm2-dev.json:/config/pm2.json"
     ports:
-      - "7511-7513:7511-7513"
+      - "7512:7512"
     environment:
       - NODE_ENV=development
 
