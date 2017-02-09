@@ -16,7 +16,7 @@
   // ip on which the proxy should bind itself for http connections. Defaults to all interfaces
   "host": "0.0.0.0",
   // TCP port to listen to
-  "port": 7511,
+  "port": 7512,
   // The size limit of a request. If it's a string, the
   //       value is passed to the "bytes" library (https://www.npmjs.com/package/bytes).
   //       If this is a number, then the value specifies the number of bytes.
