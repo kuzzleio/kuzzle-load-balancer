@@ -34,6 +34,7 @@ describe('/service/protocol/Websocket', function () {
         remove: sinon.spy()
       },
       httpProxy: {
+        maxRequestSize: '1MB',
         server: {
           once: sinon.spy(),
           on: sinon.spy(),
@@ -407,6 +408,26 @@ describe('/service/protocol/Websocket', function () {
       ws.onClientMessage(badId, JSON.stringify('aPayload'));
       should(proxy.router.execute.callCount).be.eql(0);
       should(requestStub.callCount).be.eql(0);
+    });
+
+    it('should reply with error if the actual data sent exceeds the maxRequestSize', () => {
+      ws.connectionPool = {
+        [goodId]: {
+          alive: true,
+          connection: 'aConnection',
+          socket: {
+            send: sendSpy
+          },
+          channels: []
+        }
+      };
+      proxy.httpProxy.maxRequestSize = 2;
+
+      ws.onClientMessage(goodId, JSON.stringify('aPayload'));
+
+      should(sendSpy)
+        .be.calledOnce()
+        .be.calledWithMatch('"status":413');
     });
 
     it('should execute the request if client and packet are ok', function () {

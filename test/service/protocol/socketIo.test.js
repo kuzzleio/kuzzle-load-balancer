@@ -65,6 +65,7 @@ describe('/service/protocol/SocketIo', function () {
         remove: sinon.spy()
       },
       httpProxy: {
+        maxRequestSize: '1MB',
         server: {
           once: sinon.spy(),
           on: sinon.spy(),
@@ -271,6 +272,19 @@ describe('/service/protocol/SocketIo', function () {
       io.onClientMessage(clientSocketMock, 'badConnectionId', 'aPayload');
       should(proxy.router.execute.callCount).be.eql(0);
       should(requestStub.callCount).be.eql(0);
+    });
+
+    it('should reply with error if the actual data sent exceeds the maxRequestSize', () => {
+      proxy.httpProxy.maxRequestSize = 2;
+
+      io.onClientMessage(clientSocketMock, 'connectionId', {requestId: 1234, payload: 'aPayload'});
+
+      should(io.io.to)
+        .be.calledOnce()
+        .be.calledWith(clientSocketMock.id);
+      should(io.io.to.firstCall.returnValue.emit)
+        .be.calledOnce()
+        .be.calledWithMatch(1234, {status: 413});
     });
 
     it('should execute the request if client and packet are ok', function () {
