@@ -22,12 +22,12 @@ describe('/service/httpProxy', () => {
         remove: sinon.spy()
       },
       config: {
+        host: 'host',
+        port: 1234,
+        maxRequestSize: '100kb',
         http: {
           enabled: true,
-          maxRequestSize: '100kb',
-          maxFileSize: '100kb',
-          port: 1234,
-          host: 'host'
+          maxFormFileSize: '100kb'
         }
       },
       logAccess: sinon.spy()
@@ -91,21 +91,21 @@ describe('/service/httpProxy', () => {
     });
 
     it('should throw if an invalid maxRequestSize is given', () => {
-      proxy.config.http.maxRequestSize = 'invalid';
+      proxy.config.maxRequestSize = 'invalid';
 
       return should(() => httpProxy.init(proxy))
         .throw('Invalid HTTP "maxRequestSize" parameter');
     });
 
-    it('should throw if an invalid maxFileSize is given', () => {
-      proxy.config.http.maxFileSize = 'invalid';
+    it('should throw if an invalid maxFormFileSize is given', () => {
+      proxy.config.http.maxFormFileSize = 'invalid';
 
       return should(() => httpProxy.init(proxy))
-        .throw('Invalid HTTP "maxFileSize" parameter');
+        .throw('Invalid HTTP "maxFormFileSize" parameter');
     });
 
     it('should throw if no port is given', () => {
-      delete proxy.config.http.port;
+      delete proxy.config.port;
 
       return should(() => httpProxy.init(proxy))
         .throw('No HTTP port configured.');
@@ -114,7 +114,7 @@ describe('/service/httpProxy', () => {
     it('should init the http server', () => {
       should(httpProxy.server.listen)
         .be.calledOnce()
-        .be.calledWith(proxy.config.http.port, proxy.config.http.host);
+        .be.calledWith(proxy.config.port, proxy.config.host);
     });
 
     it('should respond with error if the request is too big', () => {
@@ -226,13 +226,13 @@ describe('/service/httpProxy', () => {
       endCB();
     });
 
-    it('should reply with error if the binary file size sent exceeds the maxFileSize', () => {
+    it('should reply with error if the binary file size sent exceeds the maxFormFileSize', () => {
       HttpProxy.__with__({
         replyWithError: sandbox.spy()
       })(() => {
         let cb = HttpProxy.__get__('http').createServer.firstCall.args[0];
 
-        httpProxy.maxFileSize = 2;
+        httpProxy.maxFormFileSize = 2;
         request.headers['content-type'] = 'multipart/form-data; boundary=---------------------------165748628625109734809700179';
         cb(request, response);
 

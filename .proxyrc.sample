@@ -13,24 +13,25 @@
     "mode": "standard",
     "timeout": 10000
   },
+  // ip on which the proxy should bind itself for http connections. Defaults to all interfaces
+  "host": "0.0.0.0",
+  // TCP port to listen to
+  "port": 7511,
+  // The size limit of a request. If it's a string, the
+  //       value is passed to the "bytes" library (https://www.npmjs.com/package/bytes).
+  //       If this is a number, then the value specifies the number of bytes.
+  "maxRequestSize": "1MB",
   // http proxy
   //
   // configuration of the http proxy server for Kuzzle
   // options
   //   enabled: true/false (if http is disabled, the server will be started only websocket and socketio protocols). Default to "true"
-  //   port:    TCP port to listen to
-  //   maxRequestSize: the size limit of a request. If it's a string, the
+  //   maxFormFileSize: the size limit of a file (for upload requests). If it's a string, the
   //       value is passed to the "bytes" library (https://www.npmjs.com/package/bytes).
   //       If this is a number, then the value specifies the number of bytes.
-  //   maxFileSize: the size limit of a file (for upload requests). If it's a string, the
-  //       value is passed to the "bytes" library (https://www.npmjs.com/package/bytes).
-  //       If this is a number, then the value specifies the number of bytes.
-  //   [host]:  ip on which the proxy should bind itself for http connections. Defaults to all interfaces
   "http": {
     "enabled": true,
-    "port": 7511,
-    "maxRequestSize": "1MB",
-    "maxFileSize": "1MB"
+    "maxFormFileSize": "1MB"
   },
   // websocket protocols
   //
