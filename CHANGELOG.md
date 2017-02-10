@@ -1,4 +1,18 @@
 *__note:__ the # at the end of lines are the pull request numbers on GitHub*
+
+# 1.0.0-RC9
+
+* https://github.com/kuzzleio/kuzzle-proxy/releases/tag/1.0.0-RC9
+
+### Breaking changes
+
+* Plugin: full refactoring of the plugin management and installation: #52
+* Protocols: Websocket and Socket.io protocols are now embed within the core and listen to the same port as HTTP (7512 by default) #48
+
+# 1.0.0-RC8
+
+* https://github.com/kuzzleio/kuzzle-proxy/releases/tag/1.0.0-RC8
+
 # 1.0.0-RC6
 
 * https://github.com/kuzzleio/kuzzle-proxy/releases/tag/1.0.0-RC6

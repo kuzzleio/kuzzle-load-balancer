@@ -2,112 +2,71 @@
 
 const
   should = require('should'),
-  RequestContext = require('kuzzle-common-objects').models.RequestContext,
-  ClientConnection = require.main.require('lib/store/ClientConnection');
+  ClientConnection = require('../../lib/store/ClientConnection');
 
-describe('Test: store/ClientConnection', function () {
-  var
-    dummyConnectionExist = new RequestContext({connectionId: 'exists', protocol: 'dummy'}),
-    dummyConnectionDoesNotExist = new RequestContext({connectionId: 'doesnotexist', protocol: 'dummy'}),
-    dummyInvalidConnection = new RequestContext({foo: 'invalid', protocol: 'dummy'});
+describe('store/clientConnection', () => {
+  let
+    store;
 
-  it('constructor must initialize clientConnections', () => {
-    var clientConnection = new ClientConnection();
-
-    should(clientConnection.clientConnections).be.an.Object();
+  beforeEach(() => {
+    store = new ClientConnection();
   });
 
-  it('method add must add an item to the clientConnections', () => {
-    var clientConnection = new ClientConnection();
+  describe('#add', () => {
+    it('should add a new connection', () => {
+      const connection = {id: 'connectionId'};
+      store.add(connection);
 
-    clientConnection.add(dummyConnectionExist);
-
-    should(clientConnection.clientConnections[dummyConnectionExist.connectionId]).be.deepEqual(dummyConnectionExist);
+      should(store.clientConnections.connectionId)
+        .be.exactly(connection);
+    });
   });
 
-  it('method add must not add an item to the clientConnections if invalid', () => {
-    var clientConnection = new ClientConnection();
+  describe('#remove', () => {
+    it('should do nothing is the connection is unknown', () => {
+      store.clientConnections.id = {foo: 'bar'};
+      store.remove('wrong id');
 
-    clientConnection.add(dummyInvalidConnection);
+      should(Object.keys(store.clientConnections))
+        .have.length(1);
+    });
 
-    should(Object.keys(clientConnection.clientConnections).length).be.eql(0);
+    it('should remove the conneciton', () => {
+      store.clientConnections.id = {foo: 'bar'};
+      store.remove('id');
+
+      should(store.clientConnections)
+        .be.empty();
+    });
   });
 
-  it('method remove must remove an item from the clientConnections if it exists', () => {
-    var clientConnection = new ClientConnection();
+  describe('#get', () => {
+    it('should, given a connection Id, return the matching connection', () => {
+      const connection = {foo: 'bar'};
+      store.clientConnections.id = connection;
 
-    clientConnection.clientConnections = {[dummyConnectionExist.connectionId]: dummyConnectionExist};
+      should(store.get('id'))
+        .be.exactly(connection);
+    });
 
-    clientConnection.remove(dummyConnectionExist);
-
-    should(Object.keys(clientConnection.clientConnections).length).be.eql(0);
+    it('should return undefined if the given id does not match any connection in the store', () => {
+      should(store.get('id'))
+        .be.undefined();
+    });
   });
 
-  it('method remove must not remove an item from the clientConnections if it does not exist', () => {
-    var clientConnection = new ClientConnection();
+  describe('#getAll', () => {
+    it('should return the store connections as an array', () => {
+      store.clientConnections.foo = 'bar';
+      store.clientConnections.bar = 'baz';
+      store.clientConnections.blah = 'blah';
 
-    clientConnection.clientConnections = {[dummyConnectionExist.connectionId]: dummyConnectionExist};
-
-    clientConnection.remove(dummyConnectionDoesNotExist);
-
-    should(Object.keys(clientConnection.clientConnections).length).be.eql(1);
-  });
-
-  it('method remove must not remove an item from the clientConnections if argument is invalid', () => {
-    var clientConnection = new ClientConnection();
-
-    clientConnection.clientConnections = {[dummyConnectionExist.connectionId]: dummyConnectionExist};
-
-    clientConnection.remove(dummyInvalidConnection);
-
-    should(Object.keys(clientConnection.clientConnections).length).be.eql(1);
-  });
-
-  it('method get must return an item from clientConnections if it exists', () => {
-    var clientConnection = new ClientConnection();
-
-    clientConnection.clientConnections = {[dummyConnectionExist.connectionId]: dummyConnectionExist};
-
-    should(clientConnection.get(dummyConnectionExist)).be.deepEqual(dummyConnectionExist);
-  });
-
-  it('method get must return undefined if the item does not exist in clientConnections', () => {
-    var clientConnection = new ClientConnection();
-
-    clientConnection.clientConnections = {[dummyConnectionExist.connectionId]: dummyConnectionExist};
-
-    should(clientConnection.get(dummyConnectionDoesNotExist)).be.undefined();
-  });
-
-  it('method get must return undefined if the argument is invalid', () => {
-    var clientConnection = new ClientConnection();
-
-    clientConnection.clientConnections = {[dummyConnectionExist.connectionId]: dummyConnectionExist};
-
-    should(clientConnection.get(dummyInvalidConnection)).be.undefined();
-  });
-
-  it('method getByConnectionId must return an item from clientConnections if it exists', () => {
-    var clientConnection = new ClientConnection();
-
-    clientConnection.clientConnections = {[dummyConnectionExist.connectionId]: dummyConnectionExist};
-
-    should(clientConnection.getByConnectionId(dummyConnectionExist.connectionId)).be.deepEqual(dummyConnectionExist);
-  });
-
-  it('method get must return undefined if the item doesn\'t not exist in clientConnections', () => {
-    var clientConnection = new ClientConnection();
-
-    clientConnection.clientConnections = {[dummyConnectionExist.connectionId]: dummyConnectionExist};
-
-    should(clientConnection.getByConnectionId(dummyConnectionDoesNotExist.connectionId)).be.undefined();
-  });
-
-  it('method getAll must return clientConnections', () => {
-    var clientConnection = new ClientConnection();
-
-    clientConnection.clientConnections = {[dummyConnectionExist.connectionId]: dummyConnectionExist};
-
-    should(clientConnection.getAll()).be.deepEqual(clientConnection.clientConnections);
+      should(store.getAll())
+        .match([
+          'bar',
+          'baz',
+          'blah'
+        ]);
+    });
   });
 });
