@@ -5,7 +5,6 @@ const
   rewire = require('rewire'),
   should = require('should'),
   sinon = require('sinon'),
-  Promise = require('bluebird'),
   KuzzleProxy = rewire('../../lib/core/KuzzleProxy'),
   proxyConfig = require('../../lib/core/config');
 
@@ -82,8 +81,6 @@ describe('lib/core/KuzzleProxy', () => {
   describe('#start', () => {
     it('should call proper methods in order', () => {
       proxy.initLogger = sinon.spy();
-      proxy.installPluginsIfNeeded = sinon.stub().returns(Promise.resolve());
-
       proxy.start();
       should(proxy.initLogger)
         .be.calledOnce();
