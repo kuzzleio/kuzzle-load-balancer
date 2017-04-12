@@ -4,7 +4,9 @@ const
   should = require('should'),
   sinon = require('sinon'),
   rewire = require('rewire'),
+  Request = require('kuzzle-common-objects').Request,
   Router = rewire('../../lib/service/Router'),
+  InternalError = require('kuzzle-common-objects').errors.InternalError,
   ServiceUnavailableError = require('kuzzle-common-objects').errors.ServiceUnavailableError;
 
 describe('#Test: service/Router', function () {
@@ -69,39 +71,35 @@ describe('#Test: service/Router', function () {
       request;
 
     beforeEach(() => {
-      request = {
-        id: 'requestId',
-        context: {
-          connectionId: 'connectionId'
-        },
-        response: 'response',
-        serialize: sinon.stub().returns('serializedRequest'),
-        setError: sinon.spy()
-      };
+      request = new Request({
+        id: 'requestId'
+      }, {
+        connectionId: 'connectionId',
+        result: 'response'
+      });
     });
 
     it('should call the broker callback with a cb that properly handles errors back from Kuzzle', () => {
       const
         cb = sinon.spy(),
-        error = new Error('test');
+        error = new InternalError('test');
 
       router.execute(request, cb);
 
       should(proxy.broker.brokerCallback)
         .be.calledOnce()
-        .be.calledWith('request', request.id, request.context.connectionId, 'serializedRequest');
+        .be.calledWith('request', request.id, request.context.connectionId, request.serialize());
 
       const brokerCb = proxy.broker.brokerCallback.firstCall.args[4];
 
       brokerCb(error);
 
-      should(request.setError)
-        .be.calledOnce()
-        .be.calledWith(error);
+      should(request.error)
+        .be.eql(error);
 
       should(cb)
         .be.calledOnce()
-        .be.calledWith('response');
+        .be.calledWith(request.response.toJSON());
     });
 
     it('should call the broker callback with a cb that handles success', () => {
