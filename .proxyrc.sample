@@ -13,14 +13,33 @@
     "mode": "standard",
     "timeout": 10000
   },
-  // ip on which the proxy should bind itself for http connections. Defaults to all interfaces
-  "host": "0.0.0.0",
-  // TCP port to listen to
-  "port": 7512,
+  // Logs section
+  "logs": {
+    "access": {
+      "transport": "console",
+      "level": "info",
+      "stderrLevels": []
+    },
+    "error": {
+      "transport": "console",
+      "level": "info",
+      "stderrLevels": ["warn", "error", "debug"]
+    },
+    // The format of the access logs. Default to Apache combined format
+    // Accepted values: "combined" or "logstash"
+    // If set to "logstash", outputs access logs as JSON, ready to be consumed by Logstash
+    "accessLogFormat": "combined",
+    // The offset of the ip address to take from the X-Forwarded-Host headers from the end.
+    // Defaults to 0, being the last ip address set in the header.
+    // You may want to change this value if Kuzzle is running behind a reverse proxy
+    "accessLogIpOffset": 0
+  },
   // The size limit of a request. If it's a string, the
   //       value is passed to the "bytes" library (https://www.npmjs.com/package/bytes).
   //       If this is a number, then the value specifies the number of bytes.
   "maxRequestSize": "1MB",
+  // ip on which the proxy should bind itself for http connections. Defaults to all interfaces
+  "host": "0.0.0.0",
   // http proxy
   //
   // configuration of the http proxy server for Kuzzle
@@ -33,14 +52,8 @@
     "enabled": true,
     "maxFormFileSize": "1MB"
   },
-  // websocket protocols
-  //
-  // configuration of the websocket protocol for Kuzzle (uses http server)
-  // options
-  //   enabled: true/false. Default to "true"
-  "websocket": {
-    "enabled": true
-  },
+  // TCP port to listen to
+  "port": 7512,
   // socketio protocols
   //
   // configuration of the socketio protocol for Kuzzle (uses http server)
@@ -50,5 +63,13 @@
   "socketio": {
     "enabled": true,
     "origins": "*:*"
+  },
+  // websocket protocols
+  //
+  // configuration of the websocket protocol for Kuzzle (uses http server)
+  // options
+  //   enabled: true/false. Default to "true"
+  "websocket": {
+    "enabled": true
   }
 }
