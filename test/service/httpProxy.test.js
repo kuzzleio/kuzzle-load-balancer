@@ -2,14 +2,14 @@
 
 const
   rewire = require('rewire'),
+  mockrequire = require('mock-require'),
   should = require('should'),
-  sinon = require('sinon'),
-  HttpProxy = rewire('../../lib/service/HttpProxy');
+  sinon = require('sinon');
 
 describe('/service/httpProxy', () => {
   let
+    HttpProxy,
     proxy,
-    reset,
     httpProxy;
 
   beforeEach(() => {
@@ -33,20 +33,22 @@ describe('/service/httpProxy', () => {
       logAccess: sinon.spy()
     };
 
-    reset = HttpProxy.__set__({
-      http: {
-        createServer: sinon.stub().returns({
-          listen: sinon.spy()
-        })
-      }
+
+    mockrequire('http', {
+      createServer: sinon.stub().returns({
+        listen: sinon.spy()
+      })
     });
+
+    mockrequire.reRequire('../../lib/service/HttpProxy');
+    HttpProxy = rewire('../../lib/service/HttpProxy');
 
     httpProxy = new HttpProxy();
     httpProxy.init(proxy);
   });
 
   afterEach(() => {
-    reset();
+    mockrequire.stopAll();
   });
 
   describe('#init', () => {
@@ -129,9 +131,10 @@ describe('/service/httpProxy', () => {
 
         should(request.resume)
           .be.calledOnce();
+        console.log(HttpProxy.__get__('replyWithError').firstCall.args);
         should(HttpProxy.__get__('replyWithError'))
           .be.calledOnce()
-          .be.calledWithMatch(/^[0-9a-w-]+$/, {url: request.url, method: request.method}, response, {message: 'Error: maximum HTTP request size exceeded'});
+          .be.calledWithMatch(proxy, /^[0-9a-w-]+$/, {url: request.url, method: request.method}, response, {message: 'Error: maximum HTTP request size exceeded'});
       });
     });
 
@@ -151,7 +154,7 @@ describe('/service/httpProxy', () => {
           .be.calledTwice();
 
         should(HttpProxy.__get__('replyWithError'))
-          .be.calledWithMatch(/^[0-9a-z-]+$/, {url: request.url, method: request.method}, response, {message: 'Error: maximum HTTP request size exceeded'});
+          .be.calledWithMatch(proxy, /^[0-9a-z-]+$/, {url: request.url, method: request.method}, response, {message: 'Error: maximum HTTP request size exceeded'});
       });
     });
 
@@ -169,7 +172,7 @@ describe('/service/httpProxy', () => {
           .be.calledOnce();
         should(HttpProxy.__get__('replyWithError'))
           .be.calledOnce()
-          .be.calledWithMatch(/^[0-9a-w-]+$/, {url: request.url, method: request.method}, response, {message: 'Unsupported content type: foo/bar'});
+          .be.calledWithMatch(proxy, /^[0-9a-w-]+$/, {url: request.url, method: request.method}, response, {message: 'Unsupported content type: foo/bar'});
       });
     });
 
@@ -274,14 +277,15 @@ describe('/service/httpProxy', () => {
   });
 
   describe('#sendRequest', () => {
-    const sendRequest = HttpProxy.__get__('sendRequest');
-
     let
+      sendRequest,
       payload,
       res,
       response;
 
     beforeEach(() => {
+      sendRequest = HttpProxy.__get__('sendRequest');
+
       payload = {
         requestId: 'requestId',
         url: 'url?pretty'

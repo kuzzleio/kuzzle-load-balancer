@@ -2,16 +2,16 @@
 
 const
   _ = require('lodash'),
+  mockrequire = require('mock-require'),
   rewire = require('rewire'),
   should = require('should'),
   sinon = require('sinon'),
-  KuzzleProxy = rewire('../../lib/core/KuzzleProxy'),
   proxyConfig = require('../../lib/core/config');
 
 describe('lib/core/KuzzleProxy', () => {
   let
+    KuzzleProxy,
     BackendHandler = sinon.spy(),
-    reset,
     proxy,
     winstonTransportConsole,
     winstonTransportFile,
@@ -19,36 +19,30 @@ describe('lib/core/KuzzleProxy', () => {
     winstonTransportSyslog;
 
   beforeEach(() => {
+    const initStub = function () { this.init = sinon.stub(); };
+
     winstonTransportConsole = sinon.spy();
     winstonTransportElasticsearch = sinon.spy();
     winstonTransportFile = sinon.spy();
     winstonTransportSyslog = sinon.spy();
 
-    reset = KuzzleProxy.__set__({
-      config: _.cloneDeep(proxyConfig),
-      Broker: sinon.spy(function () {
-        this.init = sinon.spy();                // eslint-disable-line no-invalid-this
-      }),
-      Context: sinon.spy(),
-      HttpProxy: sinon.spy(function () {
-        this.init = sinon.spy();                // eslint-disable-line no-invalid-this
-      }),
-      Websocket: sinon.spy(function () {
-        this.init = sinon.spy();                // eslint-disable-line no-invalid-this
-      }),
-      SocketIo: sinon.spy(function () {
-        this.init = sinon.spy();                // eslint-disable-line no-invalid-this
-      }),
-      winston: {
-        Logger: sinon.spy(),
-        transports: {
-          Console: winstonTransportConsole,
-          File: winstonTransportFile
-        }
-      },
-      WinstonElasticsearch: winstonTransportElasticsearch,
-      WinstonSyslog: winstonTransportSyslog
+    mockrequire('../../lib/core/Context', sinon.spy());
+    mockrequire('../../lib/service/Broker', initStub);
+    mockrequire('../../lib/service/HttpProxy', initStub);
+    mockrequire('../../lib/service/protocol/Websocket', initStub);
+    mockrequire('../../lib/service/protocol/SocketIo', initStub);
+    mockrequire('winston', {
+      Logger: sinon.spy(),
+      transports: {
+        Console: winstonTransportConsole,
+        File: winstonTransportFile
+      }
     });
+    mockrequire('winston-elasticsearch', winstonTransportElasticsearch);
+    mockrequire('winston-syslog', winstonTransportSyslog);
+    mockrequire('../../lib/core/config', _.cloneDeep(proxyConfig));
+
+    KuzzleProxy = mockrequire.reRequire('../../lib/core/KuzzleProxy');
 
     proxy = new KuzzleProxy(BackendHandler);
 
@@ -63,7 +57,7 @@ describe('lib/core/KuzzleProxy', () => {
   });
 
   afterEach(() => {
-    reset();
+    mockrequire.stopAll();
   });
 
   describe('#log getter', () => {
@@ -130,76 +124,68 @@ describe('lib/core/KuzzleProxy', () => {
       existsStub.onFirstCall().returns(1);
       existsStub.onSecondCall().returns(0);
 
-      return KuzzleProxy.__with__({
-        fs: {
-          readdirSync: () => {
-            return ['kuzzle-plugin-test', 'kuzzle-plugin-invalid'];
-          },
-          existsSync: existsStub,
-          statSync: () => {
-            return {
-              isSymbolicLink: () => {
-                return false;
-              },
-              isDirectory: () => {
-                return true;
-              }
-            };
-          }
-        }
-      })(() => {
-        sinon.stub(proxy, 'loadPlugin')
-          .onFirstCall().returns({
-            name: 'myPlugin'
-          })
-          .onSecondCall().throws(new Error('Something bad happened'));
-        sinon.stub(proxy, 'initPlugin');
-
-        proxy.loadPlugins();
-
-        should(proxy.loadPlugin)
-          .be.calledTwice();
-        should(proxy.log.error)
-          .be.calledOnce();
-        should(proxy.initPlugin)
-          .be.calledOnce();
+      mockrequire('fs', {
+        readdirSync: () => ['kuzzle-plugin-test', 'kuzzle-plugin-invalid'],
+        existsSync: existsStub,
+        statSync: () => ({isDirectory: () => true})
       });
+
+      KuzzleProxy = mockrequire.reRequire('../../lib/core/KuzzleProxy');
+      proxy = new KuzzleProxy(BackendHandler);
+
+      sinon.stub(proxy, 'loadPlugin')
+        .onFirstCall().returns({
+          name: 'myPlugin'
+        })
+        .onSecondCall().throws(new Error('Something bad happened'));
+      sinon.stub(proxy, 'initPlugin');
+      Object.defineProperty(proxy, 'log', {
+        enumerable: true,
+        value: {
+          info: sinon.spy(),
+          warn: sinon.spy(),
+          error: sinon.spy()
+        }
+      });
+      proxy.loadPlugins();
+
+      should(proxy.loadPlugin).be.calledTwice();
+      should(proxy.log.error).be.calledOnce();
+      should(proxy.initPlugin).be.calledOnce();
     });
   });
 
   describe('#loadPlugin', () => {
     it('should return a valid plugin definition if the path is correct', () => {
-      let pluginClassSpy = sinon.spy();
-      let requireStub = sinon.stub();
-      let name = 'foo';
-      requireStub.onFirstCall().returns(pluginClassSpy);
-      requireStub.onSecondCall().returns({
-        name: name
-      });
-      return KuzzleProxy.__with__({
-        path: {
-          resolve: () => {},
-          basename: () => {
-            return 'plugin-foo';
-          }
-        },
-        require: requireStub,
-        fs: {
-          existsSync: () => {
-            return true;
-          }
-        }
-      })(() => {
-        let definition = proxy.loadPlugin();
+      const
+        pluginClassSpy = sinon.spy(),
+        requireStub = sinon.stub(),
+        name = 'foo';
 
-        should(definition)
-          .be.Object();
-        should(definition)
-          .have.keys('name', 'object', 'config', 'path');
-        should(definition.name)
-          .be.eql(name);
-        should(pluginClassSpy)
-          .be.calledOnce();
+      requireStub.onFirstCall().returns(pluginClassSpy);
+      requireStub.onSecondCall().returns({name});
+
+      mockrequire('path', {
+        resolve: sinon.stub(),
+        basename: () => 'plugin-foo'
+      });
+
+      mockrequire('fs', {
+        existsSync: () => true
+      });
+
+      mockrequire.reRequire('../../lib/core/KuzzleProxy');
+
+      const Rewired = rewire('../../lib/core/KuzzleProxy');
+
+      return Rewired.__with__({require: requireStub})(() => {
+        const p = new Rewired(BackendHandler);
+        let definition = p.loadPlugin();
+
+        should(definition).be.Object();
+        should(definition).have.keys('name', 'object', 'config', 'path');
+        should(definition.name).be.eql(name);
+        should(pluginClassSpy).be.calledOnce();
       });
     });
   });

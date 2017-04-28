@@ -4,14 +4,14 @@ const
   should = require('should'),
   sinon = require('sinon'),
   rewire = require('rewire'),
-  Broker = rewire('../../lib/service/Broker'),
+  mockrequire = require('mock-require'),
   ServiceUnavailableError = require('kuzzle-common-objects').errors.ServiceUnavailableError;
 
 describe('service/broker', () => {
   let
+    Broker,
     broker,
-    proxy,
-    reset;
+    proxy;
 
   beforeEach(() => {
     proxy = {
@@ -32,29 +32,35 @@ describe('service/broker', () => {
       logAccess: sinon.spy()
     };
 
-    reset = Broker.__set__({
-      Backend: sinon.spy(function () {
-        this.sendRaw = sinon.stub().yields();   // eslint-disable-line no-invalid-this
-      }),
-      fs: {
-        unlinkSync: sinon.spy()
-      },
-      http: {
-        createServer: sinon.stub().returns({
-          listen: sinon.spy(),
-          on: sinon.spy()
-        })
-      },
-      net: {
-        connect: sinon.stub().returns({
-          on: sinon.spy()
-        })
-      },
-      WebSocketServer: sinon.spy(function () {
+
+    mockrequire('../../lib/service/Backend', sinon.spy(function () {
+      this.sendRaw = sinon.stub().yields();   // eslint-disable-line no-invalid-this
+    }));
+
+    mockrequire('fs', {unlinkSync: sinon.stub()});
+    mockrequire('http', {
+      createServer: sinon.stub().returns({
+        listen: sinon.spy(),
+        on: sinon.spy()
+      })
+    });
+
+    mockrequire('net', {
+      connect: sinon.stub().returns({
+        on: sinon.spy()
+      })
+    });
+
+    mockrequire('ws', {
+      Server: sinon.spy(function () {
         this.close = sinon.stub().yields();   // eslint-disable-line no-invalid-this
         this.on = sinon.spy();                // eslint-disable-line no-invalid-this
       })
     });
+
+    mockrequire.reRequire('../../lib/service/Broker');
+    Broker = rewire('../../lib/service/Broker');
+
     broker = new Broker();
     broker.init(proxy, {
       socket: 'socket'
@@ -62,7 +68,7 @@ describe('service/broker', () => {
   });
 
   afterEach(() => {
-    reset();
+    mockrequire.stopAll();
   });
 
   describe('#initiateServer', () => {

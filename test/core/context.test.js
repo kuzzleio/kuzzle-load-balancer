@@ -27,8 +27,7 @@ describe('Test: core/Context', function () {
       },
       context = new Context(proxy);
 
-    should (context.accessors.router)
-      .be.exactly(proxy.router);
+    should (context.accessors.router).be.exactly(proxy.router);
   });
 
   it('log getter should return the proxy error logger', () => {
