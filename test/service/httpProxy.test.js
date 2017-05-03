@@ -2,14 +2,14 @@
 
 const
   rewire = require('rewire'),
+  mockrequire = require('mock-require'),
   should = require('should'),
-  sinon = require('sinon'),
-  HttpProxy = rewire('../../lib/service/HttpProxy');
+  sinon = require('sinon');
 
 describe('/service/httpProxy', () => {
   let
+    HttpProxy,
     proxy,
-    reset,
     httpProxy;
 
   beforeEach(() => {
@@ -33,20 +33,22 @@ describe('/service/httpProxy', () => {
       logAccess: sinon.spy()
     };
 
-    reset = HttpProxy.__set__({
-      http: {
-        createServer: sinon.stub().returns({
-          listen: sinon.spy()
-        })
-      }
+
+    mockrequire('http', {
+      createServer: sinon.stub().returns({
+        listen: sinon.spy()
+      })
     });
+
+    mockrequire.reRequire('../../lib/service/HttpProxy');
+    HttpProxy = rewire('../../lib/service/HttpProxy');
 
     httpProxy = new HttpProxy();
     httpProxy.init(proxy);
   });
 
   afterEach(() => {
-    reset();
+    mockrequire.stopAll();
   });
 
   describe('#init', () => {
@@ -121,17 +123,17 @@ describe('/service/httpProxy', () => {
       HttpProxy.__with__({
         replyWithError: sandbox.spy()
       })(() => {
-        let cb = HttpProxy.__get__('http').createServer.firstCall.args[0];
+        const cb = HttpProxy.__get__('http').createServer.firstCall.args[0];
 
         request.headers['content-length'] = 9999999999;
 
         cb(request, response);
 
-        should(request.resume)
-          .be.calledOnce();
+        should(request.resume).be.calledOnce();
+        console.log(HttpProxy.__get__('replyWithError').firstCall.args);
         should(HttpProxy.__get__('replyWithError'))
           .be.calledOnce()
-          .be.calledWithMatch(/^[0-9a-w-]+$/, {url: request.url, method: request.method}, response, {message: 'Error: maximum HTTP request size exceeded'});
+          .be.calledWithMatch(proxy, /^[0-9a-w-]+$/, {url: request.url, method: request.method}, response, {message: 'Error: maximum HTTP request size exceeded'});
       });
     });
 
@@ -139,19 +141,18 @@ describe('/service/httpProxy', () => {
       HttpProxy.__with__({
         replyWithError: sandbox.spy()
       })(() => {
-        let cb = HttpProxy.__get__('http').createServer.firstCall.args[0];
+        const cb = HttpProxy.__get__('http').createServer.firstCall.args[0];
 
         httpProxy.maxRequestSize = 2;
         cb(request, response);
 
-        let dataCB = request.on.firstCall.args[1];
+        const dataCB = request.on.firstCall.args[1];
 
         dataCB('a slightly too big chunk');
-        should(request.removeAllListeners)
-          .be.calledTwice();
+        should(request.removeAllListeners).be.calledTwice();
 
         should(HttpProxy.__get__('replyWithError'))
-          .be.calledWithMatch(/^[0-9a-z-]+$/, {url: request.url, method: request.method}, response, {message: 'Error: maximum HTTP request size exceeded'});
+          .be.calledWithMatch(proxy, /^[0-9a-z-]+$/, {url: request.url, method: request.method}, response, {message: 'Error: maximum HTTP request size exceeded'});
       });
     });
 
@@ -159,28 +160,27 @@ describe('/service/httpProxy', () => {
       HttpProxy.__with__({
         replyWithError: sandbox.spy()
       })(() => {
-        let cb = HttpProxy.__get__('http').createServer.firstCall.args[0];
+        const cb = HttpProxy.__get__('http').createServer.firstCall.args[0];
 
         request.headers['content-type'] = 'foo/bar';
 
         cb(request, response);
 
-        should(request.resume)
-          .be.calledOnce();
+        should(request.resume).be.calledOnce();
         should(HttpProxy.__get__('replyWithError'))
           .be.calledOnce()
-          .be.calledWithMatch(/^[0-9a-w-]+$/, {url: request.url, method: request.method}, response, {message: 'Unsupported content type: foo/bar'});
+          .be.calledWithMatch(proxy, /^[0-9a-w-]+$/, {url: request.url, method: request.method}, response, {message: 'Unsupported content type: foo/bar'});
       });
     });
 
     it('should handle valid JSON request', (done) => {
-      const resetSendRequest = HttpProxy.__set__('sendRequest', (connId, res, pload) => {
+      const resetSendRequest = HttpProxy.__set__('sendRequest', (_proxy, connId, res, pload) => {
         resetSendRequest();
         should(pload.content).be.exactly('chunk1chunk2chunk3');
         done();
       });
 
-      let cb = HttpProxy.__get__('http').createServer.firstCall.args[0];
+      const cb = HttpProxy.__get__('http').createServer.firstCall.args[0];
 
       cb(request, response);
 
@@ -195,17 +195,16 @@ describe('/service/httpProxy', () => {
           }
         });
 
-      let dataCB = request.on.firstCall.args[1];
+      const dataCB = request.on.firstCall.args[1];
       dataCB('chunk1');
       dataCB('chunk2');
       dataCB('chunk3');
 
-      let endCB = request.on.lastCall.args[1];
-      endCB();
+      request.on.lastCall.args[1]();
     });
 
     it('should handle valid x-www-form-urlencoded request', (done) => {
-      const resetSendRequest = HttpProxy.__set__('sendRequest', (connId, res, pload) => {
+      const resetSendRequest = HttpProxy.__set__('sendRequest', (_proxy, connId, res, pload) => {
         resetSendRequest();
         should(pload.content).be.empty('');
         should(pload.json.foo).be.exactly('bar');
@@ -230,26 +229,25 @@ describe('/service/httpProxy', () => {
       HttpProxy.__with__({
         replyWithError: sandbox.spy()
       })(() => {
-        let cb = HttpProxy.__get__('http').createServer.firstCall.args[0];
+        const cb = HttpProxy.__get__('http').createServer.firstCall.args[0];
 
         httpProxy.maxFormFileSize = 2;
         request.headers['content-type'] = 'multipart/form-data; boundary=---------------------------165748628625109734809700179';
         cb(request, response);
 
-        let dataCB = request.on.firstCall.args[1];
+        const dataCB = request.on.firstCall.args[1];
 
         dataCB(multipart);
-        should(request.removeAllListeners)
-          .be.calledTwice();
 
+        should(request.removeAllListeners).be.calledTwice();
         should(HttpProxy.__get__('replyWithError'))
-          .be.calledWithMatch(/^[0-9a-z-]+$/, {url: request.url, method: request.method}, response, {message: 'Error: maximum HTTP file size exceeded'});
+          .be.calledWithMatch(proxy, /^[0-9a-z-]+$/, {url: request.url, method: request.method}, response, {message: 'Error: maximum HTTP file size exceeded'});
       });
     });
 
     it('should handle valid multipart/form-data request', (done) => {
       const
-        resetSendRequest = HttpProxy.__set__('sendRequest', (connId, res, pload) => {
+        resetSendRequest = HttpProxy.__set__('sendRequest', (_proxy, connId, res, pload) => {
           resetSendRequest();
           should(pload.content).be.empty('');
           should(pload.json.foo).be.exactly('bar');
@@ -274,14 +272,15 @@ describe('/service/httpProxy', () => {
   });
 
   describe('#sendRequest', () => {
-    const sendRequest = HttpProxy.__get__('sendRequest');
-
     let
+      sendRequest,
       payload,
       res,
       response;
 
     beforeEach(() => {
+      sendRequest = HttpProxy.__get__('sendRequest');
+
       payload = {
         requestId: 'requestId',
         url: 'url?pretty'
@@ -304,7 +303,7 @@ describe('/service/httpProxy', () => {
     it('should reply with error if one is received from Kuzzle', () => {
       const error = new Error('error');
 
-      sendRequest('connectionId', response, payload);
+      sendRequest(proxy, 'connectionId', response, payload);
 
       should(proxy.broker.brokerCallback)
         .be.calledOnce()
@@ -316,7 +315,7 @@ describe('/service/httpProxy', () => {
 
       should(HttpProxy.__get__('replyWithError'))
         .be.calledOnce()
-        .be.calledWith('connectionId', payload, response, error);
+        .be.calledWith(proxy, 'connectionId', payload, response, error);
     });
 
     it('should output the result', () => {
@@ -328,7 +327,7 @@ describe('/service/httpProxy', () => {
         content: 'content'
       };
 
-      sendRequest('connectionId', response, payload);
+      sendRequest(proxy, 'connectionId', response, payload);
       const cb = proxy.broker.brokerCallback.firstCall.args[4];
 
       cb(undefined, result);
@@ -353,7 +352,7 @@ describe('/service/httpProxy', () => {
         content: new Buffer('test')
       };
 
-      sendRequest('connectionId', response, payload);
+      sendRequest(proxy, 'connectionId', response, payload);
       const cb = proxy.broker.brokerCallback.firstCall.args[4];
 
       cb(undefined, result);
@@ -370,7 +369,7 @@ describe('/service/httpProxy', () => {
         content: JSON.parse(JSON.stringify(new Buffer('test')))
       };
 
-      sendRequest('connectionId', response, payload);
+      sendRequest(proxy, 'connectionId', response, payload);
       const cb = proxy.broker.brokerCallback.firstCall.args[4];
 
       cb(undefined, result);
@@ -387,7 +386,7 @@ describe('/service/httpProxy', () => {
         content: [{foo: 'bar'}]
       };
 
-      sendRequest('connectionId', response, payload);
+      sendRequest(proxy, 'connectionId', response, payload);
       const cb = proxy.broker.brokerCallback.firstCall.args[4];
 
       cb(undefined, result);
@@ -403,7 +402,7 @@ describe('/service/httpProxy', () => {
         content: 'content'
       };
 
-      sendRequest('connectionId', response, payload);
+      sendRequest(proxy, 'connectionId', response, payload);
       const cb = proxy.broker.brokerCallback.firstCall.args[4];
 
       cb(undefined, result);
@@ -431,7 +430,7 @@ describe('/service/httpProxy', () => {
       const error = new Error('test');
       error.status = 'status';
 
-      replyWithError('connectionId', 'payload', response, error);
+      replyWithError(proxy, 'connectionId', 'payload', response, error);
 
       should(proxy.logAccess)
         .be.calledOnce()
@@ -454,7 +453,7 @@ describe('/service/httpProxy', () => {
       const error = new Error('test');
       error.status = 'status';
 
-      replyWithError('connectionId', 'payload', response, error);
+      replyWithError(proxy, 'connectionId', 'payload', response, error);
 
       should(proxy.clientConnectionStore.remove)
         .be.calledOnce()

@@ -21,13 +21,13 @@
     "url": "https://github.com/kuzzleio/kuzzle-proxy.git"
   },
   "dependencies": {
-    "debug": "^2.6.0",
     "async": "^2.0.1",
     "bufferutil": "^1.2.1",
     "busboy": "0.2.13",
     "bytes": "^2.4.0",
     "cli-color": "^1.1.0",
     "compare-versions": "^3.0.0",
+    "debug": "^2.6.0",
     "kuzzle-common-objects": "2.1.0",
     "lodash": "^4.14.1",
     "moment": "^2.17.1",
@@ -46,6 +46,7 @@
     "eslint": "3.7.1",
     "istanbul": "0.4.5",
     "mocha": "3.1.0",
+    "mock-require": "^2.0.2",
     "proxyquire": "^1.7.10",
     "rewire": "2.5.2",
     "should": "11.1.0",
