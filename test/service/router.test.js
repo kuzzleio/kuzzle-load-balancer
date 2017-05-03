@@ -102,6 +102,38 @@ describe('#Test: service/Router', function () {
         .be.calledWith(request.response.toJSON());
     });
 
+    it('should call the broker callback on a raw request error', () => {
+      const
+        cb = sinon.spy(),
+        error = new KuzzleInternalError('test');
+
+      const mockRequest = {
+        id: request.id,
+        context: request.context,
+        serialize: sinon.stub(),
+        setError: sinon.stub(),
+        response: { foo: 'bar' }
+      };
+
+      router.execute(mockRequest, cb);
+
+      should(mockRequest.serialize).calledOnce();
+
+      should(proxy.broker.brokerCallback)
+        .be.calledOnce()
+        .be.calledWith('request', request.id, request.context.connectionId, mockRequest.serialize());
+
+      const brokerCb = proxy.broker.brokerCallback.firstCall.args[4];
+
+      brokerCb(error);
+
+      should(mockRequest.setError).calledWith(error);
+
+      should(cb)
+        .be.calledOnce()
+        .be.calledWith(mockRequest.response);
+    });
+
     it('should call the broker callback with a cb that handles success', () => {
       const
         cb = sinon.spy();

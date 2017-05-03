@@ -300,7 +300,78 @@ describe('lib/core/KuzzleProxy', () => {
           showLevel: 'showLevel',
           humanReadableUnhandledException: 'humanReadableUnhandledException'
         });
+    });
 
+    it('should ignore badly configured transports', () => {
+      const
+        config = [{
+          level: 'level',
+          silent: 'silent',
+          colorize: 'colorize',
+          timestamp: 'timestamp',
+          json: 'json',
+          stringify: 'stringify',
+          prettyPrint: 'prettyPrint',
+          depth: 'depth',
+          showLevel: 'showLevel'
+        }],
+        Rewired = rewire('../../lib/core/KuzzleProxy'),
+        errorStub = sinon.stub();
+
+      Rewired.__with__({
+        console: {
+          error: errorStub
+        }
+      })(() => {
+        const rewiredProxy = new Rewired(BackendHandler);
+
+        rewiredProxy.config.logs.errors = [Object.assign({}, config)];
+        rewiredProxy.config.logs.errors.push(Object.assign({}, config));
+
+        rewiredProxy.config.logs.errors[0].transport = 'foobar';
+        Object.assign(rewiredProxy.config.logs.errors[0], {
+          index: 'index',
+          indexPrefix: 'indexPrefix',
+          indexSuffixPattern: 'indexSuffixPattern',
+          messageType: 'messageType',
+          ensureMappingTemplate: 'ensureMappingTemplate',
+          mappingTemplate: 'mappingTemplate',
+          flushInterval: 'flushInterval',
+          clientOpts: 'clientOpts'
+        });
+
+        rewiredProxy.config.logs.errors[1].transport = 'syslog';
+        Object.assign(rewiredProxy.config.logs.errors[1], {
+          host: 'host',
+          port: 'port',
+          protocol: 'protocol',
+          path: 'path',
+          pid: 'pid',
+          facility: 'facility',
+          localhost: 'localhost',
+          type: 'type',
+          app_name: 'app_name',
+          eol: 'eol'
+        });
+
+        rewiredProxy.initLogger();
+
+        should(winstonTransportSyslog)
+          .be.calledOnce()
+          .be.calledWithMatch({
+            host: 'host',
+            port: 'port',
+            protocol: 'protocol',
+            path: 'path',
+            pid: 'pid',
+            facility: 'facility',
+            localhost: 'localhost',
+            type: 'type',
+            app_name: 'app_name',
+            eol: 'eol'
+          });
+        should(errorStub).calledWith('Failed to initialize logger transport "foobar": unsupported transport. Skipped.');
+      });
     });
   });
 
