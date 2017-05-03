@@ -19,7 +19,7 @@ describe('lib/core/KuzzleProxy', () => {
     winstonTransportSyslog;
 
   beforeEach(() => {
-    const initStub = function () { this.init = sinon.stub(); };
+    const initStub = function () { this.init = sinon.stub(); }; // eslint-disable-line no-invalid-this
 
     winstonTransportConsole = sinon.spy();
     winstonTransportElasticsearch = sinon.spy();

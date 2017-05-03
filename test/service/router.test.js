@@ -3,11 +3,12 @@
 const
   should = require('should'),
   sinon = require('sinon'),
-  rewire = require('rewire'),
   Request = require('kuzzle-common-objects').Request,
-  Router = rewire('../../lib/service/Router'),
-  InternalError = require('kuzzle-common-objects').errors.InternalError,
-  ServiceUnavailableError = require('kuzzle-common-objects').errors.ServiceUnavailableError;
+  Router = require('../../lib/service/Router'),
+  {
+    InternalError: KuzzleInternalError,
+    ServiceUnavailableError
+  } = require('kuzzle-common-objects').errors;
 
 describe('#Test: service/Router', function () {
   let
@@ -43,8 +44,7 @@ describe('#Test: service/Router', function () {
 
   describe('#constructor', () => {
     it('method constructor initializes the object properly', () => {
-      should(Router.__get__('_proxy'))
-        .be.exactly(proxy);
+      should(router.proxy).be.exactly(proxy);
     });
   });
 
@@ -82,7 +82,7 @@ describe('#Test: service/Router', function () {
     it('should call the broker callback with a cb that properly handles errors back from Kuzzle', () => {
       const
         cb = sinon.spy(),
-        error = new InternalError('test');
+        error = new KuzzleInternalError('test');
 
       router.execute(request, cb);
 
