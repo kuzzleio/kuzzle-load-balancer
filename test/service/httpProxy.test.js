@@ -448,6 +448,17 @@ describe('/service/httpProxy', () => {
           'Access-Control-Allow-Headers': 'Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With'
         });
     });
+
+    it('should remove pending request from clientConnectionStore', () => {
+      const error = new Error('test');
+      error.status = 'status';
+
+      replyWithError(proxy, 'connectionId', 'payload', response, error);
+
+      should(proxy.clientConnectionStore.remove)
+        .be.calledOnce()
+        .be.calledWithMatch('connectionId');
+    });
   });
 
 });
