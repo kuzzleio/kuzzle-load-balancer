@@ -39,7 +39,7 @@
     "winston": "^2.3.0",
     "winston-elasticsearch": "^0.4.2",
     "winston-syslog": "^1.2.5",
-    "ws": "^1.1.1"
+    "ws": "2.3.1"
   },
   "devDependencies": {
     "codecov.io": "^0.1.6",
