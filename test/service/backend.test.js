@@ -335,6 +335,22 @@ describe('service/Backend', () => {
         .be.calledOnce()
         .be.calledWith(data);
     });
+
+    it('#shutdown', () => {
+      backend.onMessageRooms.shutdown();
+
+      should(proxy.backendHandler.removeBackend)
+        .be.calledOnce()
+        .be.calledWith(backend);
+    });
+
+    it('#shutdown should do nothing if invoked more than once', () => {
+      backend.active = false;
+
+      backend.onMessageRooms.shutdown();
+
+      should(proxy.backendHandler.removeBackend.called).be.false();
+    });
   });
 
 });
