@@ -390,7 +390,7 @@ describe('lib/core/KuzzleProxy', () => {
       should(proxy.log.warn)
         .be.calledOnce()
         .be.calledWith('[access log] No connection retrieved for connection id: -1\n' +
-          'Most likely, the connection was closed before the response we received.');
+          'Most likely, the connection was closed before the response was received.');
 
       should(proxy.loggers.access.info)
         .have.callCount(0);

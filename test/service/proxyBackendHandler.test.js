@@ -4,7 +4,7 @@ var
   ProxyBackendHandler = require.main.require('lib/service/ProxyBackendHandler');
 
 describe('Test: service/ProxyBackendHandler', function () {
-  var
+  let
     sandbox;
 
   before(() => {
@@ -37,30 +37,43 @@ describe('Test: service/ProxyBackendHandler', function () {
     should(backendHandler.currentBackend).be.eql(null);
   });
 
-  it('method addBackend close the previous backend connection before attaching a new one if it exists', () => {
-    var
+  it('method addBackend sets the incoming backend as pending to keep the object alive', () => {
+    const
+      backend = {foo: 'bar'},
+      backendHandler = new ProxyBackendHandler('standard');
+
+    backendHandler.addBackend(backend);
+
+    should(backendHandler.pendingBackend)
+      .be.exactly(backend);
+  });
+
+  it('method activateBackend close the previous backend connection before attaching a new one if it exists', () => {
+    const
       backendMode = 'standard',
       backendHandler = new ProxyBackendHandler(backendMode),
       dummyBackend = {dummy: 'backend'},
       onCloseSpy = sandbox.spy();
 
     backendHandler.currentBackend = {onConnectionClose: onCloseSpy};
+    backendHandler.pendingBackend = dummyBackend;
 
-    backendHandler.addBackend(dummyBackend);
+    backendHandler.activateBackend();
 
     should(onCloseSpy.calledOnce).be.true();
     should(backendHandler.currentBackend).be.eql(dummyBackend);
   });
 
-  it('method addBackend does not close the previous backend connection before attaching a new one if it does not exist', () => {
-    var
+  it('method activateBackend does not close the previous backend connection before attaching a new one if it does not exist', () => {
+    const
       backendMode = 'standard',
       backendHandler = new ProxyBackendHandler(backendMode),
       dummyBackend = {dummy: 'backend'};
 
+    backendHandler.pendingBackend = dummyBackend;
     backendHandler.currentBackend = null;
 
-    backendHandler.addBackend(dummyBackend);
+    backendHandler.activateBackend();
 
     should(backendHandler.currentBackend).be.eql(dummyBackend);
   });
