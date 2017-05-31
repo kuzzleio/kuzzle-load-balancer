@@ -6,7 +6,12 @@ const
   sinon = require('sinon'),
   EventEmitter = require('events'),
   fakeRequest = {id: 'requestId', aRequest: 'Object'},
-  requestStub = sinon.stub().returns({id: 'requestId', aRequest: 'Object'}),
+  requestStub = sinon.spy(function (data = {}) {
+    if (data && data.fail) {
+      throw new Error('test');
+    }
+    return fakeRequest;
+  }),
   emitStub = sinon.stub(),
   clientConnectionStub = function(protocol, ips, headers) {
     return {protocol: protocol, id: 'connectionId', headers: headers};
@@ -258,7 +263,6 @@ describe('/service/protocol/SocketIo', function () {
     beforeEach(() => {
       io.init(proxy);
       io.sockets.connectionId = clientSocketMock;
-      proxy.router.execute.reset();
       emitStub.reset();
     });
 
@@ -287,7 +291,7 @@ describe('/service/protocol/SocketIo', function () {
         .be.calledWithMatch(1234, {status: 413});
     });
 
-    it('should execute the request if client and packet are ok', function () {
+    it('should execute the request if client and packet are ok', () => {
       io.onClientMessage(clientSocketMock, 'connectionId', 'aPayload');
 
       should(requestStub)
@@ -310,17 +314,23 @@ describe('/service/protocol/SocketIo', function () {
     });
 
     it('should forward an error message to the client if a request cannot be instantiated', () => {
-      requestStub.throws({message: 'error'});
-      io.onClientMessage(clientSocketMock, 'connectionId', {requestId: 'foobar', index: 'foo', controller: 'bar', body: ['this causes an error']});
+      io.onClientMessage(clientSocketMock, 'connectionId', {
+        fail: true,
+        requestId: 'foobar',
+        index: 'foo',
+        controller: 'bar',
+        body: ['this causes an error']
+      });
       should(requestStub.called).be.true();
       should(proxy.router.execute.called).be.false();
-      should(emitStub).be.calledOnce();
-      should(emitStub.firstCall.args[1]).match({
-        status: 400,
-        error: {
-          message: 'error'
-        }
-      });
+      should(emitStub)
+        .be.calledOnce()
+        .be.calledWithMatch('foobar', {
+          status: 400,
+          error: {
+            message: 'test'
+          }
+        });
     });
   });
 
