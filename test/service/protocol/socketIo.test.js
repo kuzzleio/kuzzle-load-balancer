@@ -102,6 +102,7 @@ describe('/service/protocol/SocketIo', function () {
   afterEach(() => {
     requestStub.reset();
     onClientSpy.reset();
+    clientSocketMock.emit.reset();
     clientSocketMock.disconnect.reset();
   });
 
@@ -161,12 +162,17 @@ describe('/service/protocol/SocketIo', function () {
 
       io.onConnection(clientSocketMock);
 
-      should(proxy.log.error)
-        .be.calledWith('[socketio] Unable to register connection to the proxy\n%s', error.stack);
-
       should(onClientSpy.callCount).be.eql(0);
-      should(clientSocketMock.disconnect.called).be.true();
 
+      should(clientSocketMock.emit)
+        .be.calledOnce();
+
+      should(clientSocketMock.emit.getCall(0).args[0]).be.eql('kuzzle_proxy_disconnection');
+      should(clientSocketMock.emit.getCall(0).args[1]).be.instanceof(Error);
+      should(clientSocketMock.emit.getCall(0).args[1].message).be.eql('test');
+
+      should(clientSocketMock.disconnect)
+        .be.calledOnce();
     });
   });
 
@@ -365,12 +371,17 @@ describe('/service/protocol/SocketIo', function () {
       io.init(proxy);
     });
 
-    it('should close the client socket', () => {
+    it('should send close command to force the client to close his socket', () => {
       io.sockets.connectionId = {
+        emit: sinon.spy(),
         disconnect: sinon.spy()
       };
 
-      io.disconnect('connectionId');
+      io.disconnect('connectionId', 'nope');
+
+      should(io.sockets.connectionId.emit.getCall(0).args[0]).be.eql('kuzzle_proxy_disconnection');
+      should(io.sockets.connectionId.emit.getCall(0).args[1]).be.instanceof(Error);
+      should(io.sockets.connectionId.emit.getCall(0).args[1].message).be.eql('nope');
 
       should(io.sockets.connectionId.disconnect)
         .be.calledOnce();
