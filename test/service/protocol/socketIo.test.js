@@ -5,8 +5,8 @@ const
   should = require('should'),
   sinon = require('sinon'),
   EventEmitter = require('events'),
-  fakeRequest = {id: 'requestId', aRequest: 'Object'},
-  requestStub = sinon.stub().returns({id: 'requestId', aRequest: 'Object'}),
+  fakeRequest = {id: 'requestId', aRequest: 'Object', input: {headers: {foo: 'bar'}}},
+  requestStub = sinon.stub().returns({id: 'requestId', aRequest: 'Object', input: {}}),
   emitStub = sinon.stub(),
   clientConnectionStub = function(protocol, ips, headers) {
     return {protocol: protocol, id: 'connectionId', headers: headers};
@@ -261,6 +261,13 @@ describe('/service/protocol/SocketIo', function () {
   });
 
   describe('#onMessage', function () {
+    const
+      connection = {
+        id: 'connectionId',
+        headers: {foo: 'bar'}
+      },
+      badConnection = {id: 'badConnectionId'};
+
     beforeEach(() => {
       io.init(proxy);
       io.sockets.connectionId = clientSocketMock;
@@ -269,13 +276,13 @@ describe('/service/protocol/SocketIo', function () {
     });
 
     it('should do nothing if the data is undefined', function () {
-      io.onClientMessage(clientSocketMock, 'connectionId', undefined);
+      io.onClientMessage(clientSocketMock, connection, undefined);
       should(proxy.router.execute.callCount).be.eql(0);
       should(requestStub.callCount).be.eql(0);
     });
 
     it('should do nothing if the client is unknown', function () {
-      io.onClientMessage(clientSocketMock, 'badConnectionId', 'aPayload');
+      io.onClientMessage(clientSocketMock, badConnection, 'aPayload');
       should(proxy.router.execute.callCount).be.eql(0);
       should(requestStub.callCount).be.eql(0);
     });
@@ -283,7 +290,7 @@ describe('/service/protocol/SocketIo', function () {
     it('should reply with error if the actual data sent exceeds the maxRequestSize', () => {
       proxy.httpProxy.maxRequestSize = 2;
 
-      io.onClientMessage(clientSocketMock, 'connectionId', {requestId: 1234, payload: 'aPayload'});
+      io.onClientMessage(clientSocketMock, connection, {requestId: 1234, payload: 'aPayload'});
 
       should(io.io.to)
         .be.calledOnce()
@@ -294,7 +301,7 @@ describe('/service/protocol/SocketIo', function () {
     });
 
     it('should execute the request if client and packet are ok', function () {
-      io.onClientMessage(clientSocketMock, 'connectionId', 'aPayload');
+      io.onClientMessage(clientSocketMock, connection, 'aPayload');
 
       should(requestStub)
         .be.calledOnce()
@@ -317,7 +324,7 @@ describe('/service/protocol/SocketIo', function () {
 
     it('should forward an error message to the client if a request cannot be instantiated', () => {
       requestStub.throws({message: 'error'});
-      io.onClientMessage(clientSocketMock, 'connectionId', {requestId: 'foobar', index: 'foo', controller: 'bar', body: ['this causes an error']});
+      io.onClientMessage(clientSocketMock, connection, {requestId: 'foobar', index: 'foo', controller: 'bar', body: ['this causes an error']});
       should(requestStub.called).be.true();
       should(proxy.router.execute.called).be.false();
       should(emitStub).be.calledOnce();

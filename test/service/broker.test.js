@@ -175,7 +175,7 @@ describe('service/broker', () => {
   });
 
   describe('#onConnection', () => {
-    it('should register the backend and send it the active connections', (done) => {
+    it('should register the backend', (done) => {
       proxy.clientConnectionStore.getAll.returns([
         'foo',
         'bar'
@@ -184,11 +184,8 @@ describe('service/broker', () => {
 
       broker.onConnection('socket');
 
-      const backend = Broker.__get__('Backend').firstCall.returnValue;
-
-      should(backend.sendRaw)
-        .be.calledWith('connection', 'foo')
-        .be.calledWith('connection', 'bar');
+      should(Broker.__get__('Backend'))
+        .be.calledOnce();
     });
 
     it('should log a different message depending on the connection type', () => {

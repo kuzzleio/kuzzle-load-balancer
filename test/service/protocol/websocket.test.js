@@ -4,8 +4,8 @@ const
   proxyquire = require('proxyquire'),
   should = require('should'),
   sinon = require('sinon'),
-  fakeRequest = {aRequest: 'Object'},
-  requestStub = sinon.stub().returns({aRequest: 'Object'}),
+  fakeRequest = {aRequest: 'Object', input: {headers: {foo: 'bar'}}},
+  requestStub = sinon.stub().returns({aRequest: 'Object', input: {}}),
   clientConnectionStub = function(protocol, ips, headers) {
     return {protocol: protocol, id: 'id', headers: headers};
   },
@@ -389,6 +389,13 @@ describe('/service/protocol/Websocket', function () {
   });
 
   describe('#onMessage', function () {
+    const
+      goodConnection = {
+        id: goodId,
+        headers: {foo: 'bar'}
+      },
+      badConnection = {id: badId};
+
     beforeEach(() => {
       ws.init(proxy);
       proxy.router.execute.reset();
@@ -400,7 +407,7 @@ describe('/service/protocol/Websocket', function () {
           alive: true
         }
       };
-      ws.onClientMessage(badId, undefined);
+      ws.onClientMessage(badConnection, undefined);
       should(proxy.router.execute.callCount).be.eql(0);
       should(requestStub.callCount).be.eql(0);
     });
@@ -411,7 +418,7 @@ describe('/service/protocol/Websocket', function () {
           alive: true
         }
       };
-      ws.onClientMessage(badId, JSON.stringify('aPayload'));
+      ws.onClientMessage(badConnection, JSON.stringify('aPayload'));
       should(proxy.router.execute.callCount).be.eql(0);
       should(requestStub.callCount).be.eql(0);
     });
@@ -420,7 +427,7 @@ describe('/service/protocol/Websocket', function () {
       ws.connectionPool = {
         [goodId]: {
           alive: true,
-          connection: 'aConnection',
+          connection: goodConnection,
           socket: {
             send: sendSpy
           },
@@ -429,7 +436,7 @@ describe('/service/protocol/Websocket', function () {
       };
       proxy.httpProxy.maxRequestSize = 2;
 
-      ws.onClientMessage(goodId, JSON.stringify('aPayload'));
+      ws.onClientMessage(goodConnection, JSON.stringify('aPayload'));
 
       should(sendSpy)
         .be.calledOnce()
@@ -440,7 +447,7 @@ describe('/service/protocol/Websocket', function () {
       ws.connectionPool = {
         [goodId]: {
           alive: true,
-          connection: 'aConnection',
+          connection: goodConnection,
           socket: {
             send: sendSpy
           },
@@ -448,7 +455,7 @@ describe('/service/protocol/Websocket', function () {
         }
       };
 
-      ws.onClientMessage(goodId, JSON.stringify('aPayload'));
+      ws.onClientMessage(goodConnection, JSON.stringify('aPayload'));
 
       should(requestStub)
         .be.calledOnce()
@@ -473,7 +480,7 @@ describe('/service/protocol/Websocket', function () {
       ws.connectionPool = {
         [goodId]: {
           alive: true,
-          connection: 'aConnection',
+          connection: goodConnection,
           socket: {
             send: sendSpy
           },
@@ -481,7 +488,7 @@ describe('/service/protocol/Websocket', function () {
         }
       };
 
-      ws.onClientMessage(goodId, 'foobar');
+      ws.onClientMessage(goodConnection, 'foobar');
       should(requestStub.called).be.false();
       should(proxy.router.execute.called).be.false();
       should(sendSpy).be.calledOnce();
@@ -492,7 +499,7 @@ describe('/service/protocol/Websocket', function () {
       ws.connectionPool = {
         [goodId]: {
           alive: true,
-          connection: 'aConnection',
+          connection: goodConnection,
           socket: {
             send: sendSpy
           },
@@ -501,7 +508,7 @@ describe('/service/protocol/Websocket', function () {
       };
 
       requestStub.throws({message: 'error'});
-      ws.onClientMessage(goodId, JSON.stringify({requestId: 'foobar', index: 'foo', controller: 'bar', body: ['this causes an error']}));
+      ws.onClientMessage(goodConnection, JSON.stringify({requestId: 'foobar', index: 'foo', controller: 'bar', body: ['this causes an error']}));
       should(requestStub.called).be.true();
       should(proxy.router.execute.called).be.false();
       should(sendSpy.calledOnce).be.true();

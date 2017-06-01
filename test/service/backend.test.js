@@ -16,6 +16,7 @@ describe('service/Backend', () => {
   beforeEach(() => {
     proxy = {
       backendHandler: {
+        activateBackend: sinon.spy(),
         removeBackend: sinon.spy(),
         getBackend: sinon.stub()
       },
@@ -111,6 +112,7 @@ describe('service/Backend', () => {
 
   describe('#onConnectionClose', () => {
     it('should remove the backend and abort all pending requests', () => {
+      backend.active = true;
       backend.backendRequestStore.abortAll = sinon.spy();
       proxy.backendHandler.getBackend.returns(['a_backend']);
 
@@ -149,6 +151,7 @@ describe('service/Backend', () => {
     it('should remove the backend and abort all pending requests', () => {
       const error = new Error('test');
 
+      backend.active = true;
       backend.backendRequestStore.abortAll = sinon.spy();
 
       backend.onConnectionError(error);
@@ -164,6 +167,7 @@ describe('service/Backend', () => {
 
   describe('#send', () => {
     it('should register the cb and call the backend', () => {
+      backend.active = true;
       backend.backendRequestStore.add = sinon.spy();
 
       backend.send('room', 'id', 'data', 'callback');
@@ -180,6 +184,7 @@ describe('service/Backend', () => {
 
   describe('#sendRaw', () => {
     it('should forward the request to the backend socket', () => {
+      backend.active = true;
       backend.sendRaw('room', 'data', 'callback');
 
       should(socket.send)
@@ -357,7 +362,46 @@ describe('service/Backend', () => {
         .be.calledWith(data);
     });
 
+    it('#ready - should send client connections and buffered requests', (done) => {
+      backend.active = false;
+      backend.proxy.clientConnectionStore.getAll.returns([
+        {connectionId: 'connection1', protocol: 'protocol'},
+        {connectionId: 'connection2', protocol: 'protocol'},
+        {connectionId: 'connection3', protocol: 'protocol'}
+      ]);
+
+      backend.sendRaw = sinon.spy();
+
+      Backend.__with__({
+        'async.each': (coll, iteratee, callback) => {
+          callback.call(backend);
+
+          should(backend.active)
+            .be.true();
+
+          should(proxy.backendHandler.activateBackend)
+            .be.calledOnce();
+
+          for (const clientConnection of coll) {
+            // eslint-disable-next-line no-loop-func
+            iteratee(clientConnection, () => {
+              should(backend.sendRaw)
+                .be.calledWith('connection', {
+                  connectionId: clientConnection.connectionId,
+                  protocol: clientConnection.protocol
+                });
+            });
+          }
+
+          done();
+        }
+      })(() => {
+        backend.onMessageRooms.ready();
+      });
+    });
+
     it('#shutdown', () => {
+      backend.active = true;
       backend.onMessageRooms.shutdown();
 
       should(proxy.backendHandler.removeBackend)
