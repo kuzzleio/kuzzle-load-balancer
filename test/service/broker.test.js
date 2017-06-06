@@ -18,7 +18,8 @@ describe('service/broker', () => {
       backendHandler: {
         addBackend: sinon.spy(),
         getAllBackends: sinon.stub(),
-        getBackend: sinon.stub()
+        getBackend: sinon.stub(),
+        removeClient: sinon.stub()
       },
       clientConnectionStore: {
         add: sinon.spy(),
@@ -191,11 +192,9 @@ describe('service/broker', () => {
     it('should log a different message depending on the connection type', () => {
       broker.config.socket = false;
 
-      broker.onConnection({
-        upgradeReq: {
-          connection: {
-            remoteAddress: 'remoteAddress'
-          }
+      broker.onConnection({}, {
+        connection: {
+          remoteAddress: 'remoteAddress'
         }
       });
 

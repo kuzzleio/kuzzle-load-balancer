@@ -24,6 +24,11 @@ describe('service/Backend', () => {
         get: sinon.stub(),
         getAll: sinon.stub()
       },
+      config: {
+        backend: {
+          timeout: 'timeout'
+        }
+      },
       log: {
         error: sinon.spy(),
         warn: sinon.spy()
@@ -41,15 +46,10 @@ describe('service/Backend', () => {
     socket = {
       close: sinon.spy(),
       on: sinon.spy(),
-      send: sinon.spy(),
-      upgradeReq: {
-        connection: {
-          remoteAddress: 'ip'
-        }
-      }
+      send: sinon.spy()
     };
 
-    backend = new Backend(socket, proxy, 'timeout');
+    backend = new Backend(socket, {connection: {remoteAddress: 'ip'}}, proxy);
   });
 
   afterEach(() => {
@@ -66,6 +66,41 @@ describe('service/Backend', () => {
         .be.calledWith('close')
         .be.calledWith('error')
         .be.calledWith('message');
+
+      backend.onConnectionClose = sinon.spy();
+      backend.onConnectionError = sinon.spy();
+      backend.onMessage = sinon.spy();
+
+      {
+        const closeHandler = socket.on.firstCall.args[1];
+
+        closeHandler();
+        should(backend.onConnectionClose)
+          .be.calledOnce();
+      }
+
+      {
+        const
+          errorHandler = socket.on.secondCall.args[1],
+          error = new Error('test');
+
+        errorHandler(error);
+        should(backend.onConnectionError)
+          .be.calledOnce()
+          .be.calledWith(error);
+      }
+
+      {
+        const
+          messageHandler = socket.on.thirdCall.args[1],
+          message = {foo: 'bar'};
+
+        messageHandler(message);
+        should(backend.onMessage)
+          .be.calledOnce()
+          .be.calledWith(message);
+      }
+
     });
   });
 

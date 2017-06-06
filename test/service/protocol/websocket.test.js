@@ -4,14 +4,12 @@ const
   proxyquire = require('proxyquire'),
   should = require('should'),
   sinon = require('sinon'),
-  fakeRequest = {aRequest: 'Object', input: {headers: {foo: 'bar'}}},
-  requestStub = sinon.stub().returns({aRequest: 'Object', input: {}}),
+  fakeRequest = {payload: {aRequest: 'Object'}, connectionId: 'aGoodId', protocol: 'websocket', headers: {foo: 'bar'}},
   clientConnectionStub = function(protocol, ips, headers) {
     return {protocol: protocol, id: 'id', headers: headers};
   },
   Websocket = proxyquire('../../../lib/service/protocol/Websocket', {
     '../../core/clientConnection': clientConnectionStub,
-    'kuzzle-common-objects': {Request: requestStub}
   });
 
 describe('/service/protocol/Websocket', function () {
@@ -70,7 +68,6 @@ describe('/service/protocol/Websocket', function () {
 
   afterEach(() => {
     sendSpy.reset();
-    requestStub.reset();
   });
 
   describe('#init', function () {
@@ -87,16 +84,16 @@ describe('/service/protocol/Websocket', function () {
       onClientSpy = sinon.stub(),
       clientSocketMock = {
         on: onClientSpy,
-        close: sinon.stub(),
-        upgradeReq: {
-          connection: {
-            remoteAddress: 'ip'
-          },
-          url: '/',
-          headers: {
-            'X-Foo': 'bar',
-            'x-forwarded-for': '1.1.1.1,2.2.2.2'
-          }
+        close: sinon.stub()
+      },
+      req = {
+        connection: {
+          remoteAddress: 'ip'
+        },
+        url: '/',
+        headers: {
+          'X-Foo': 'bar',
+          'x-forwarded-for': '1.1.1.1,2.2.2.2'
         }
       };
 
@@ -111,7 +108,7 @@ describe('/service/protocol/Websocket', function () {
         clientDisconnectionStub = sinon.stub(ws, 'onClientDisconnection'),
         clientMessageStub = sinon.stub(ws, 'onClientMessage');
 
-      ws.onConnection(clientSocketMock);
+      ws.onConnection(clientSocketMock, req);
 
       should(onClientSpy.callCount).be.eql(3);
       should(onClientSpy.firstCall.args[0]).be.eql('close');
@@ -152,7 +149,10 @@ describe('/service/protocol/Websocket', function () {
 
       proxy.router.newConnection = sinon.stub().throws(error);
 
-      ws.onConnection(clientSocketMock);
+      ws.onConnection(clientSocketMock, req);
+
+      should(proxy.log.error)
+        .be.calledWith('[websocket] Unable to register connection to the proxy\n%s', error.stack);
 
       should(onClientSpy.callCount).be.eql(0);
       should(clientSocketMock.close.called).be.true();
@@ -398,7 +398,6 @@ describe('/service/protocol/Websocket', function () {
 
     beforeEach(() => {
       ws.init(proxy);
-      proxy.router.execute.reset();
     });
 
     it('should do nothing if the data is undefined', function () {
@@ -409,7 +408,6 @@ describe('/service/protocol/Websocket', function () {
       };
       ws.onClientMessage(badConnection, undefined);
       should(proxy.router.execute.callCount).be.eql(0);
-      should(requestStub.callCount).be.eql(0);
     });
 
     it('should do nothing if the client is unknown', function () {
@@ -420,7 +418,6 @@ describe('/service/protocol/Websocket', function () {
       };
       ws.onClientMessage(badConnection, JSON.stringify('aPayload'));
       should(proxy.router.execute.callCount).be.eql(0);
-      should(requestStub.callCount).be.eql(0);
     });
 
     it('should reply with error if the actual data sent exceeds the maxRequestSize', () => {
@@ -455,14 +452,7 @@ describe('/service/protocol/Websocket', function () {
         }
       };
 
-      ws.onClientMessage(goodConnection, JSON.stringify('aPayload'));
-
-      should(requestStub)
-        .be.calledOnce()
-        .be.calledWith('aPayload', {
-          connectionId: 'aGoodId',
-          protocol: 'websocket'
-        });
+      ws.onClientMessage(goodConnection, JSON.stringify({aRequest: 'Object'}));
 
       should(proxy.router.execute)
         .be.calledOnce()
@@ -489,7 +479,6 @@ describe('/service/protocol/Websocket', function () {
       };
 
       ws.onClientMessage(goodConnection, 'foobar');
-      should(requestStub.called).be.false();
       should(proxy.router.execute.called).be.false();
       should(sendSpy).be.calledOnce();
       should(JSON.parse(sendSpy.firstCall.args[0]).status).be.equal(400);
@@ -507,10 +496,9 @@ describe('/service/protocol/Websocket', function () {
         }
       };
 
-      requestStub.throws({message: 'error'});
+      proxy.router.execute = sinon.stub().throws({message: 'error'});
       ws.onClientMessage(goodConnection, JSON.stringify({requestId: 'foobar', index: 'foo', controller: 'bar', body: ['this causes an error']}));
-      should(requestStub.called).be.true();
-      should(proxy.router.execute.called).be.false();
+      should(proxy.router.execute).be.calledOnce();
       should(sendSpy.calledOnce).be.true();
       should(JSON.parse(sendSpy.firstCall.args[0])).match({
         status: 400,
