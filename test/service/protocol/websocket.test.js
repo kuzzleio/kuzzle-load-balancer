@@ -84,15 +84,15 @@ describe('/service/protocol/Websocket', function () {
       onClientSpy = sinon.stub(),
       clientSocketMock = {
         on: onClientSpy,
-        close: sinon.stub(),
-        upgradeReq: {
-          connection: {
-            remoteAddress: 'ip'
-          },
-          headers: {
-            'X-Foo': 'bar',
-            'x-forwarded-for': '1.1.1.1,2.2.2.2'
-          }
+        close: sinon.stub()
+      },
+      req = {
+        connection: {
+          remoteAddress: 'ip'
+        },
+        headers: {
+          'X-Foo': 'bar',
+          'x-forwarded-for': '1.1.1.1,2.2.2.2'
         }
       };
 
@@ -107,7 +107,7 @@ describe('/service/protocol/Websocket', function () {
         clientDisconnectionStub = sinon.stub(ws, 'onClientDisconnection'),
         clientMessageStub = sinon.stub(ws, 'onClientMessage');
 
-      ws.onConnection(clientSocketMock);
+      ws.onConnection(clientSocketMock, req);
 
       should(onClientSpy.callCount).be.eql(3);
       should(onClientSpy.firstCall.args[0]).be.eql('close');
@@ -148,7 +148,7 @@ describe('/service/protocol/Websocket', function () {
 
       proxy.router.newConnection = sinon.stub().throws(error);
 
-      ws.onConnection(clientSocketMock);
+      ws.onConnection(clientSocketMock, req);
 
       should(proxy.log.error)
         .be.calledWith('[websocket] Unable to register connection to the proxy\n%s', error.stack);
@@ -389,7 +389,6 @@ describe('/service/protocol/Websocket', function () {
 
     beforeEach(() => {
       ws.init(proxy);
-      proxy.router.execute.reset();
     });
 
     it('should do nothing if the data is undefined', function () {
