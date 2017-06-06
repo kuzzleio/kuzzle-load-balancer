@@ -365,7 +365,7 @@ describe('/service/protocol/SocketIo', function () {
       io.init(proxy);
     });
 
-    it('should send close command to force the client to close his socket', () => {
+    it('should send close notification to client and close his socket', () => {
       io.sockets.connectionId = {
         emit: sinon.spy(),
         disconnect: sinon.spy()
