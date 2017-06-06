@@ -262,7 +262,6 @@ describe('/service/protocol/SocketIo', function () {
     beforeEach(() => {
       io.init(proxy);
       io.sockets.connectionId = clientSocketMock;
-      proxy.router.execute.reset();
       emitStub.reset();
     });
 
@@ -299,6 +298,7 @@ describe('/service/protocol/SocketIo', function () {
       should(io.io.to)
         .be.calledOnce()
         .be.calledWith(clientSocketMock.id);
+
       should(io.io.to.firstCall.returnValue.emit)
         .be.calledOnce()
         .be.calledWith('foo', {requestId: 'foo'});

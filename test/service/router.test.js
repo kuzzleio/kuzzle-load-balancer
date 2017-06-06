@@ -5,7 +5,9 @@ const
   should = require('should'),
   sinon = require('sinon'),
   Request = require('kuzzle-common-objects').Request,
-  requestStub = sinon.stub().returns(new Request({requestId: 'requestId', foo: 'bar'}, {connectionId: 'connectionId', protocol: 'protocol'})),
+  requestStub = sinon.spy(function () {
+    return new Request({requestId: 'requestId', foo: 'bar'}, {connectionId: 'connectionId', protocol: 'protocol'});
+  }),
   {
     InternalError: KuzzleInternalError,
     ServiceUnavailableError
