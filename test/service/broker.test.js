@@ -287,9 +287,11 @@ describe('service/broker', () => {
     it('should send the request to the backend', () => {
       const
         backend = {
+          active: true,
           send: sinon.stub().yields()
         },
         cb = sinon.spy();
+
       proxy.backendHandler.getBackend.returns(backend);
 
       broker.brokerCallback('room', 'id', 'connectionId', 'data', cb);

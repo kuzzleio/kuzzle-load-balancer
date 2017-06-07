@@ -151,9 +151,6 @@ describe('/service/protocol/Websocket', function () {
 
       ws.onConnection(clientSocketMock, req);
 
-      should(proxy.log.error)
-        .be.calledWith('[websocket] Unable to register connection to the proxy\n%s', error.stack);
-
       should(onClientSpy.callCount).be.eql(0);
       should(clientSocketMock.close.called).be.true();
       should(clientSocketMock.close.calledWith(4503, 'foobar'));
@@ -161,9 +158,9 @@ describe('/service/protocol/Websocket', function () {
     });
 
     it('should do nothing if message is for socket.io', () => {
-      clientSocketMock.upgradeReq.url = '/socket.io/roomid';
+      req.url = '/socket.io/roomid';
 
-      should(ws.onConnection(clientSocketMock))
+      should(ws.onConnection(clientSocketMock, req))
         .be.false();
 
     });

@@ -149,7 +149,7 @@ describe('service/Backend', () => {
     it('should remove the backend and abort all pending requests', () => {
       backend.active = true;
       backend.backendRequestStore.abortAll = sinon.spy();
-      proxy.backendHandler.getBackend.returns(['a_backend']);
+      proxy.backendHandler.getBackend.returns({socketIp: 'a_backend', active: true});
 
       backend.onConnectionClose();
 
@@ -454,5 +454,3 @@ describe('service/Backend', () => {
   });
 
 });
-
-
