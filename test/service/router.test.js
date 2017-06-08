@@ -29,7 +29,7 @@ describe('#Test: service/Router', function () {
   beforeEach(() => {
     proxy = {
       backendHandler: {
-        getBackend: sinon.stub().returns({})
+        getBackend: sinon.stub().returns({active: true})
       },
       broker: {
         addClientConnection: sinon.spy(),
@@ -58,6 +58,13 @@ describe('#Test: service/Router', function () {
   describe('#newConnection', () => {
     it('should throw if no backend is available', () => {
       proxy.backendHandler.getBackend.returns(undefined);
+
+      return should(() => router.newConnection({}))
+        .throw(ServiceUnavailableError, {message: 'No Kuzzle instance found'});
+    });
+
+    it('should throw if no backend is active', () => {
+      proxy.backendHandler.getBackend.returns({active: false});
 
       return should(() => router.newConnection({}))
         .throw(ServiceUnavailableError, {message: 'No Kuzzle instance found'});

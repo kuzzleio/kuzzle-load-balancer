@@ -89,7 +89,8 @@ describe('/service/protocol/SocketIo', function () {
         }
       },
       log: {
-        error: sinon.spy()
+        error: sinon.spy(),
+        warn: sinon.spy()
       },
       logAccess: sinon.spy()
     };
@@ -99,6 +100,7 @@ describe('/service/protocol/SocketIo', function () {
 
   afterEach(() => {
     onClientSpy.reset();
+    clientSocketMock.emit.reset();
     clientSocketMock.disconnect.reset();
   });
 
@@ -158,12 +160,10 @@ describe('/service/protocol/SocketIo', function () {
 
       io.onConnection(clientSocketMock);
 
-      should(proxy.log.error)
-        .be.calledWith('[socketio] Unable to register connection to the proxy\n%s', error.stack);
-
       should(onClientSpy.callCount).be.eql(0);
-      should(clientSocketMock.disconnect.called).be.true();
 
+      should(clientSocketMock.disconnect)
+        .be.calledOnce();
     });
   });
 
@@ -359,12 +359,12 @@ describe('/service/protocol/SocketIo', function () {
       io.init(proxy);
     });
 
-    it('should close the client socket', () => {
+    it('should send close notification to client and close his socket', () => {
       io.sockets.connectionId = {
         disconnect: sinon.spy()
       };
 
-      io.disconnect('connectionId');
+      io.disconnect('connectionId', 'nope');
 
       should(io.sockets.connectionId.disconnect)
         .be.calledOnce();

@@ -58,7 +58,8 @@ describe('/service/protocol/Websocket', function () {
         }
       },
       log: {
-        error: sinon.spy()
+        error: sinon.spy(),
+        warn: sinon.spy()
       },
       logAccess: sinon.spy()
     };
@@ -90,6 +91,7 @@ describe('/service/protocol/Websocket', function () {
         connection: {
           remoteAddress: 'ip'
         },
+        url: '/',
         headers: {
           'X-Foo': 'bar',
           'x-forwarded-for': '1.1.1.1,2.2.2.2'
@@ -150,12 +152,17 @@ describe('/service/protocol/Websocket', function () {
 
       ws.onConnection(clientSocketMock, req);
 
-      should(proxy.log.error)
-        .be.calledWith('[websocket] Unable to register connection to the proxy\n%s', error.stack);
-
       should(onClientSpy.callCount).be.eql(0);
       should(clientSocketMock.close.called).be.true();
       should(clientSocketMock.close.calledWith(4503, 'foobar'));
+
+    });
+
+    it('should do nothing if message is for socket.io', () => {
+      req.url = '/socket.io/roomid';
+
+      should(ws.onConnection(clientSocketMock, req))
+        .be.false();
 
     });
   });
@@ -513,7 +520,7 @@ describe('/service/protocol/Websocket', function () {
 
       should(proxy.log.error)
         .be.calledOnce()
-        .be.calledWith('[websocket] An error has occured:\n' + error.stack);
+        .be.calledWith(`[websocket] An error has occured "${error.message}":\n${error.stack}`);
     });
   });
 
@@ -596,11 +603,11 @@ describe('/service/protocol/Websocket', function () {
         }
       };
 
-      ws.disconnect('id');
+      ws.disconnect('id', 'nope');
 
       should(ws.connectionPool.id.socket.close)
         .be.calledOnce()
-        .be.calledWith('CLOSEDONREQUEST', 'Connection closed by remote host');
+        .be.calledWith(1011, 'nope');
     });
 
   });

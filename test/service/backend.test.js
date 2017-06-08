@@ -17,7 +17,8 @@ describe('service/Backend', () => {
     proxy = {
       backendHandler: {
         activateBackend: sinon.spy(),
-        removeBackend: sinon.spy()
+        removeBackend: sinon.spy(),
+        getBackend: sinon.stub()
       },
       clientConnectionStore: {
         get: sinon.stub(),
@@ -36,7 +37,8 @@ describe('service/Backend', () => {
         get: sinon.stub().returns({
           joinChannel: sinon.spy(),
           leaveChannel: sinon.spy(),
-          notify: sinon.spy()
+          notify: sinon.spy(),
+          disconnect: sinon.spy()
         })
       }
     };
@@ -147,6 +149,7 @@ describe('service/Backend', () => {
     it('should remove the backend and abort all pending requests', () => {
       backend.active = true;
       backend.backendRequestStore.abortAll = sinon.spy();
+      proxy.backendHandler.getBackend.returns({socketIp: 'a_backend', active: true});
 
       backend.onConnectionClose();
 
@@ -159,6 +162,23 @@ describe('service/Backend', () => {
 
       should(socket.close)
         .be.calledOnce();
+    });
+
+    it('should remove all client connection if no backend left', () => {
+      proxy.backendHandler.getBackend.returns(null);
+      proxy.clientConnectionStore.getAll.returns([
+        {protocol: 'test', id: 42}
+      ]);
+
+      backend.onConnectionClose();
+
+      should(proxy.protocolStore.get.firstCall)
+        .be.calledOnce()
+        .be.calledWith('test');
+
+      should(proxy.protocolStore.get.firstCall.returnValue.disconnect)
+        .be.calledOnce()
+        .be.calledWith(42);
     });
   });
 
@@ -434,5 +454,3 @@ describe('service/Backend', () => {
   });
 
 });
-
-

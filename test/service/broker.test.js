@@ -28,6 +28,7 @@ describe('service/broker', () => {
       },
       log: {
         error: sinon.spy(),
+        warn: sinon.spy(),
         info: sinon.spy()
       },
       logAccess: sinon.spy()
@@ -264,7 +265,7 @@ describe('service/broker', () => {
         broker.onError(error);
         should(proxy.log.error)
           .be.calledOnce()
-          .be.calledWith('An error occurred with the broker socket, shutting down; Reason:\n%s', error.stack);
+          .be.calledWith('An error occurred with the broker socket, shutting down; Reason "%s":\n%s', error.message, error.stack);
 
         should(Broker.__get__('process').exit)
           .be.calledOnce()
@@ -287,9 +288,11 @@ describe('service/broker', () => {
     it('should send the request to the backend', () => {
       const
         backend = {
+          active: true,
           send: sinon.stub().yields()
         },
         cb = sinon.spy();
+
       proxy.backendHandler.getBackend.returns(backend);
 
       broker.brokerCallback('room', 'id', 'connectionId', 'data', cb);
