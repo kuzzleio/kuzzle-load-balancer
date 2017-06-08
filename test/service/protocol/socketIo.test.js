@@ -89,7 +89,8 @@ describe('/service/protocol/SocketIo', function () {
         }
       },
       log: {
-        error: sinon.spy()
+        error: sinon.spy(),
+        warn: sinon.spy()
       },
       logAccess: sinon.spy()
     };
@@ -164,7 +165,7 @@ describe('/service/protocol/SocketIo', function () {
       should(clientSocketMock.emit)
         .be.calledOnce();
 
-      should(clientSocketMock.emit.getCall(0).args[0]).be.eql('kuzzle_proxy_disconnection');
+      should(clientSocketMock.emit.getCall(0).args[0]).be.eql('kuzzle_socketio_disconnect');
       should(clientSocketMock.emit.getCall(0).args[1]).be.instanceof(Error);
       should(clientSocketMock.emit.getCall(0).args[1].message).be.eql('test');
 
@@ -373,7 +374,7 @@ describe('/service/protocol/SocketIo', function () {
 
       io.disconnect('connectionId', 'nope');
 
-      should(io.sockets.connectionId.emit.getCall(0).args[0]).be.eql('kuzzle_proxy_disconnection');
+      should(io.sockets.connectionId.emit.getCall(0).args[0]).be.eql('kuzzle_socketio_disconnect');
       should(io.sockets.connectionId.emit.getCall(0).args[1]).be.instanceof(Error);
       should(io.sockets.connectionId.emit.getCall(0).args[1].message).be.eql('nope');
 

@@ -58,7 +58,8 @@ describe('/service/protocol/Websocket', function () {
         }
       },
       log: {
-        error: sinon.spy()
+        error: sinon.spy(),
+        warn: sinon.spy()
       },
       logAccess: sinon.spy()
     };
@@ -519,7 +520,7 @@ describe('/service/protocol/Websocket', function () {
 
       should(proxy.log.error)
         .be.calledOnce()
-        .be.calledWith('[websocket] An error has occured:\n' + error.stack);
+        .be.calledWith(`[websocket] An error has occured "${error.message}":\n${error.stack}`);
     });
   });
 
