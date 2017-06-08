@@ -162,13 +162,6 @@ describe('/service/protocol/SocketIo', function () {
 
       should(onClientSpy.callCount).be.eql(0);
 
-      should(clientSocketMock.emit)
-        .be.calledOnce();
-
-      should(clientSocketMock.emit.getCall(0).args[0]).be.eql('kuzzle_socketio_disconnect');
-      should(clientSocketMock.emit.getCall(0).args[1]).be.instanceof(Error);
-      should(clientSocketMock.emit.getCall(0).args[1].message).be.eql('test');
-
       should(clientSocketMock.disconnect)
         .be.calledOnce();
     });
@@ -368,15 +361,10 @@ describe('/service/protocol/SocketIo', function () {
 
     it('should send close notification to client and close his socket', () => {
       io.sockets.connectionId = {
-        emit: sinon.spy(),
         disconnect: sinon.spy()
       };
 
       io.disconnect('connectionId', 'nope');
-
-      should(io.sockets.connectionId.emit.getCall(0).args[0]).be.eql('kuzzle_socketio_disconnect');
-      should(io.sockets.connectionId.emit.getCall(0).args[1]).be.instanceof(Error);
-      should(io.sockets.connectionId.emit.getCall(0).args[1].message).be.eql('nope');
 
       should(io.sockets.connectionId.disconnect)
         .be.calledOnce();
