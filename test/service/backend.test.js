@@ -16,7 +16,7 @@ describe('service/Backend', () => {
   beforeEach(() => {
     proxy = {
       backendHandler: {
-        activateBackend: sinon.spy(),
+        activateBackend: sinon.stub(),
         removeBackend: sinon.spy(),
         getBackend: sinon.stub()
       },
@@ -236,202 +236,241 @@ describe('service/Backend', () => {
       });
     });
 
-    it('#response', () => {
-      const data = {
-        requestId: 'requestId'
-      };
+    describe('#response', () => {
 
-      backend.onMessageRooms.response(data);
-      should(backend.backendRequestStore.resolve)
-        .be.calledOnce()
-        .be.calledWith('requestId', null, data);
+      it('should resolve with response`s data', () => {
+        const data = {
+          requestId: 'requestId'
+        };
+
+        backend.onMessageRooms.response(data);
+        should(backend.backendRequestStore.resolve)
+          .be.calledOnce()
+          .be.calledWith('requestId', null, data);
+      });
     });
 
-    it('httpResponse', () => {
-      const data = {
-        requestId: 'requestId'
-      };
+    describe('#httpResponse', () => {
 
-      backend.onMessageRooms.httpResponse(data);
+      it('should resolve with response`s data', () => {
+        const data = {
+          requestId: 'requestId'
+        };
 
-      should(backend.backendRequestStore.resolve)
-        .be.calledOnce()
-        .be.calledWith('requestId', null, data);
+        backend.onMessageRooms.httpResponse(data);
+
+        should(backend.backendRequestStore.resolve)
+          .be.calledOnce()
+          .be.calledWith('requestId', null, data);
+      });
     });
 
-    it('#joinChannel should handle errors', () => {
-      const
-        data = {
-          connectionId: 'id'
-        },
-        error = new Error('test');
+    describe('#joinChannel', () => {
+      it('should handle errors', () => {
+        const
+          data = {
+            connectionId: 'id'
+          },
+          error = new Error('test');
 
-      proxy.protocolStore.get.returns({
-        joinChannel: sinon.stub().throws(error)
+        proxy.protocolStore.get.returns({
+          joinChannel: sinon.stub().throws(error)
+        });
+
+        backend.onMessageRooms.joinChannel(data);
+
+        should(proxy.log.error)
+          .be.calledOnce()
+          .be.calledWith('[Join Channel] Protocol dummy failed: test');
       });
 
-      backend.onMessageRooms.joinChannel(data);
-
-      should(proxy.log.error)
-        .be.calledOnce()
-        .be.calledWith('[Join Channel] Protocol dummy failed: test');
-    });
-
-    it('#joinChannel', () => {
-      const data = {
-        connectionId: 'id'
-      };
-
-      backend.onMessageRooms.joinChannel(data);
-
-      should(proxy.protocolStore.get)
-        .be.calledOnce()
-        .be.calledWith('dummy');
-
-      should(proxy.protocolStore.get.firstCall.returnValue.joinChannel)
-        .be.calledOnce()
-        .be.calledWith(data);
-
-    });
-
-    it('#leaveChannel should log errors', () => {
-      const
-        data = {
+      it('should join the protocol`s channel', () => {
+        const data = {
           connectionId: 'id'
-        },
-        error = new Error('test');
+        };
 
-      proxy.protocolStore.get.throws(error);
+        backend.onMessageRooms.joinChannel(data);
 
-      backend.onMessageRooms.leaveChannel(data);
+        should(proxy.protocolStore.get)
+          .be.calledOnce()
+          .be.calledWith('dummy');
 
-      should(proxy.log.error)
-        .be.calledOnce()
-        .be.calledWith('[Leave Channel] Protocol undefined failed: test');
+        should(proxy.protocolStore.get.firstCall.returnValue.joinChannel)
+          .be.calledOnce()
+          .be.calledWith(data);
+
+      });
     });
 
-    it('#leaveChannel', () => {
-      const data = {
-        connectionId: 'id'
-      };
+    describe('#leaveChannel', () => {
+      it('should log errors', () => {
+        const
+          data = {
+            connectionId: 'id'
+          },
+          error = new Error('test');
 
-      backend.onMessageRooms.leaveChannel(data);
+        proxy.protocolStore.get.throws(error);
 
-      should(proxy.protocolStore.get.firstCall.returnValue.leaveChannel)
-        .be.calledOnce()
-        .be.calledWith(data);
-    });
+        backend.onMessageRooms.leaveChannel(data);
 
-    it('#notify should log errors', () => {
-      const
-        data = {
+        should(proxy.log.error)
+          .be.calledOnce()
+          .be.calledWith('[Leave Channel] Protocol undefined failed: test');
+      });
+
+      it('should leave from protocol`s channel', () => {
+        const data = {
           connectionId: 'id'
-        },
-        error = new Error('test');
+        };
 
-      proxy.protocolStore.get.throws(error);
+        backend.onMessageRooms.leaveChannel(data);
 
-      backend.onMessageRooms.notify(data);
-
-      should(proxy.log.error)
-        .be.calledOnce()
-        .be.calledWith('[Notify] Protocol dummy failed: test\nNotification data:\n%s');
+        should(proxy.protocolStore.get.firstCall.returnValue.leaveChannel)
+          .be.calledOnce()
+          .be.calledWith(data);
+      });
     });
 
-    it('#notify', () => {
-      const data = {
-        connectionId: 'id'
-      };
+    describe('#notify', () => {
+      it('should log errors', () => {
+        const
+          data = {
+            connectionId: 'id'
+          },
+          error = new Error('test');
 
-      backend.onMessageRooms.notify(data);
+        proxy.protocolStore.get.throws(error);
 
-      should(proxy.protocolStore.get.firstCall.returnValue.notify)
-        .be.calledOnce()
-        .be.calledWith(data);
-    });
+        backend.onMessageRooms.notify(data);
 
-    it('#broadcast should handle errors', () => {
-      const
-        data = {
+        should(proxy.log.error)
+          .be.calledOnce()
+          .be.calledWith('[Notify] Protocol dummy failed: test\nNotification data:\n%s');
+      });
+
+      it('should use protocoleStore to notify client', () => {
+        const data = {
           connectionId: 'id'
-        },
-        error = new Error('test');
+        };
 
-      proxy.protocolStore.protocols = {
-        foo: {
-          broadcast: sinon.spy()
-        },
-        bar: {
-          broadcast: sinon.stub().throws(error)
-        }
-      };
+        backend.onMessageRooms.notify(data);
 
-      backend.onMessageRooms.broadcast(data);
-
-      should(proxy.log.error)
-        .be.calledOnce()
-        .be.calledWith('[Broadcast] Protocol bar failed: test\nNotification data:\n%s');
+        should(proxy.protocolStore.get.firstCall.returnValue.notify)
+          .be.calledOnce()
+          .be.calledWith(data);
+      });
     });
 
-    it('#broadcast', () => {
-      const data = {
-        connectionId: 'id'
-      };
+    describe('#broadcast', () => {
+      it('should handle errors', () => {
+        const
+          data = {
+            connectionId: 'id'
+          },
+          error = new Error('test');
 
-      proxy.protocolStore.protocols = {
-        foo: {
-          broadcast: sinon.spy()
-        },
-        bar: {
-          broadcast: sinon.spy()
-        }
-      };
-
-      backend.onMessageRooms.broadcast(data);
-
-      should(proxy.protocolStore.protocols.foo.broadcast)
-        .be.calledOnce()
-        .be.calledWith(data);
-      should(proxy.protocolStore.protocols.bar.broadcast)
-        .be.calledOnce()
-        .be.calledWith(data);
-    });
-
-    it('#ready - should send client connections and buffered requests', (done) => {
-      backend.active = false;
-      backend.proxy.clientConnectionStore.getAll.returns([
-        {connectionId: 'connection1', protocol: 'protocol'},
-        {connectionId: 'connection2', protocol: 'protocol'},
-        {connectionId: 'connection3', protocol: 'protocol'}
-      ]);
-
-      backend.sendRaw = sinon.spy();
-
-      Backend.__with__({
-        'async.each': (coll, iteratee, callback) => {
-          callback.call(backend);
-
-          should(backend.active)
-            .be.true();
-
-          should(proxy.backendHandler.activateBackend)
-            .be.calledOnce();
-
-          for (const clientConnection of coll) {
-            // eslint-disable-next-line no-loop-func
-            iteratee(clientConnection, () => {
-              should(backend.sendRaw)
-                .be.calledWith('connection', {
-                  connectionId: clientConnection.connectionId,
-                  protocol: clientConnection.protocol
-                });
-            });
+        proxy.protocolStore.protocols = {
+          foo: {
+            broadcast: sinon.spy()
+          },
+          bar: {
+            broadcast: sinon.stub().throws(error)
           }
+        };
 
-          done();
-        }
-      })(() => {
-        backend.onMessageRooms.ready();
+        backend.onMessageRooms.broadcast(data);
+
+        should(proxy.log.error)
+          .be.calledOnce()
+          .be.calledWith('[Broadcast] Protocol bar failed: test\nNotification data:\n%s');
+      });
+
+      it('should broadcast notification to all protocols', () => {
+        const data = {
+          connectionId: 'id'
+        };
+
+        proxy.protocolStore.protocols = {
+          foo: {
+            broadcast: sinon.spy()
+          },
+          bar: {
+            broadcast: sinon.spy()
+          }
+        };
+
+        backend.onMessageRooms.broadcast(data);
+
+        should(proxy.protocolStore.protocols.foo.broadcast)
+          .be.calledOnce()
+          .be.calledWith(data);
+        should(proxy.protocolStore.protocols.bar.broadcast)
+          .be.calledOnce()
+          .be.calledWith(data);
+      });
+    });
+
+    describe('#ready', () => {
+      beforeEach(() => {
+        backend.active = false;
+        backend.proxy.clientConnectionStore.getAll.returns([
+          {connectionId: 'connection1', protocol: 'protocol'},
+          {connectionId: 'connection2', protocol: 'protocol'},
+          {connectionId: 'connection3', protocol: 'protocol'}
+        ]);
+        backend.onConnectionClose = sinon.spy();
+        backend.sendRaw = sinon.spy();
+      });
+
+      it('should send client connections and buffered requests', (done) => {
+        Backend.__with__({
+          'async.each': (coll, iteratee, callback) => {
+            callback.call(backend);
+
+            should(backend.active).be.true();
+            should(proxy.backendHandler.activateBackend).be.calledOnce();
+
+            for (const clientConnection of coll) {
+              // eslint-disable-next-line no-loop-func
+              iteratee(clientConnection, () => {
+                should(backend.sendRaw)
+                  .be.calledWith('connection', {
+                    connectionId: clientConnection.connectionId,
+                    protocol: clientConnection.protocol
+                  });
+              });
+            }
+
+            done();
+          }
+        })(() => {
+          backend.onMessageRooms.ready();
+        });
+      });
+
+      it('should log an error and disconnect the backend if another backend is already active', (done) => {
+        const error = new Error('foobar');
+
+        proxy.backendHandler.activateBackend.throws(error);
+        Backend.__with__({
+          'async.each': (coll, iteratee, callback) => {
+            callback.call(backend);
+
+            should(backend.active).be.false();
+            should(proxy.backendHandler.activateBackend).be.calledOnce();
+
+            should(proxy.log.error)
+              .be.calledOnce()
+              .be.calledWith('%s:\n%s', 'foobar', error.stack);
+
+            should(backend.onConnectionClose).be.calledOnce();
+
+            done();
+          }
+        })(() => {
+          backend.onMessageRooms.ready();
+        });
       });
     });
 

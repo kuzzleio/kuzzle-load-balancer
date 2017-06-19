@@ -48,23 +48,22 @@ describe('Test: service/ProxyBackendHandler', function () {
       .be.exactly(backend);
   });
 
-  it('method activateBackend close the previous backend connection before attaching a new one if it exists', () => {
+  it('method activateBackend deny attaching a new backend if a backend already exists', () => {
     const
       backendMode = 'standard',
       backendHandler = new ProxyBackendHandler(backendMode),
-      dummyBackend = {dummy: 'backend'},
-      onCloseSpy = sandbox.spy();
+      currentBackend = {backend: 'current', socketIp: '1.2.3.4'},
+      dummyBackend = {backend: 'dummy', socketIp: '1.2.3.4'};
 
-    backendHandler.currentBackend = {onConnectionClose: onCloseSpy};
+    backendHandler.currentBackend = currentBackend;
     backendHandler.pendingBackend = dummyBackend;
 
-    backendHandler.activateBackend();
+    should(function() {backendHandler.activateBackend();}).throw('Failed to activate connection with backend 1.2.3.4: a backend is already active.');
 
-    should(onCloseSpy.calledOnce).be.true();
-    should(backendHandler.currentBackend).be.eql(dummyBackend);
+    should(backendHandler.currentBackend).be.eql(currentBackend);
   });
 
-  it('method activateBackend does not close the previous backend connection before attaching a new one if it does not exist', () => {
+  it('method activateBackend attaches a new backend if no backend exists', () => {
     const
       backendMode = 'standard',
       backendHandler = new ProxyBackendHandler(backendMode),
