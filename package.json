@@ -29,7 +29,7 @@
     "kuzzle-common-objects": "3.0.4",
     "moment": "^2.18.1",
     "rc": "^1.2.1",
-    "socket.io": "^2.0.1",
+    "socket.io": "^2.0.3",
     "utf-8-validate": "^3.0.2",
     "uuid": "3.1.0",
     "winston": "^2.3.1",
@@ -39,7 +39,7 @@
   },
   "devDependencies": {
     "codecov.io": "^0.1.6",
-    "eslint": "3.19.0",
+    "eslint": "^3.19.0",
     "istanbul": "0.4.5",
     "mocha": "3.4.2",
     "mock-require": "^2.0.2",
