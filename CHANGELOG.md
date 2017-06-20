@@ -4,7 +4,7 @@
 
 | Kuzzle | Proxy |
 |--------|-------|
-| rc.x | rc.x |
+| 1.0.0 | 1.0.0 |
 
 #### Bug fixes
 
