@@ -1,7 +1,6 @@
 'use strict';
 
 const
-  _ = require('lodash'),
   mockrequire = require('mock-require'),
   rewire = require('rewire'),
   should = require('should'),
@@ -40,7 +39,7 @@ describe('lib/core/KuzzleProxy', () => {
     });
     mockrequire('winston-elasticsearch', winstonTransportElasticsearch);
     mockrequire('winston-syslog', winstonTransportSyslog);
-    mockrequire('../../lib/core/config', _.cloneDeep(proxyConfig));
+    mockrequire('../../lib/core/config', JSON.parse(JSON.stringify(proxyConfig)));
 
     KuzzleProxy = mockrequire.reRequire('../../lib/core/KuzzleProxy');
 
