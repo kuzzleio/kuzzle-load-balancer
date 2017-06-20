@@ -10,8 +10,7 @@ Kuzzle proxy relies on [rc](https://www.npmjs.com/package/rc) to manage its conf
 
 Please refer to rc documentation for more information about how to customize the configuration.
 
-You can find more detailed information on the availables configuration options in the
-[.proxyrc.sample](https://github.com/kuzzleio/kuzzle-proxy/blob/master/lib/core/.proxyrc.sample) file.
+You can find more detailed information on the available configuration options from [our documentation](http://docs.kuzzle.io/guide/#configuring-kuzzle-proxy).
 
 # Run the proxy
 

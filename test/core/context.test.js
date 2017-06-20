@@ -4,8 +4,7 @@ const
   errors = require('kuzzle-common-objects').errors,
   should = require('should'),
   ClientConnection = require('../../lib/core/clientConnection'),
-  Context = require('../../lib/core/Context'),
-  Request = require('kuzzle-common-objects').Request;
+  Context = require('../../lib/core/Context');
 
 describe('Test: core/Context', function () {
 
@@ -14,8 +13,6 @@ describe('Test: core/Context', function () {
 
     should(context.constructors.ClientConnection)
       .be.exactly(ClientConnection);
-    should(context.constructors.Request)
-      .be.exactly(Request);
     should(context.errors)
       .be.exactly(errors);
   });
@@ -27,8 +24,7 @@ describe('Test: core/Context', function () {
       },
       context = new Context(proxy);
 
-    should (context.accessors.router)
-      .be.exactly(proxy.router);
+    should (context.accessors.router).be.exactly(proxy.router);
   });
 
   it('log getter should return the proxy error logger', () => {
