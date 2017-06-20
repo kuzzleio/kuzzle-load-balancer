@@ -4,21 +4,22 @@ const
   should = require('should'),
   sinon = require('sinon'),
   rewire = require('rewire'),
-  Broker = rewire('../../lib/service/Broker'),
+  mockrequire = require('mock-require'),
   ServiceUnavailableError = require('kuzzle-common-objects').errors.ServiceUnavailableError;
 
 describe('service/broker', () => {
   let
+    Broker,
     broker,
-    proxy,
-    reset;
+    proxy;
 
   beforeEach(() => {
     proxy = {
       backendHandler: {
         addBackend: sinon.spy(),
         getAllBackends: sinon.stub(),
-        getBackend: sinon.stub()
+        getBackend: sinon.stub(),
+        removeClient: sinon.stub()
       },
       clientConnectionStore: {
         add: sinon.spy(),
@@ -27,34 +28,41 @@ describe('service/broker', () => {
       },
       log: {
         error: sinon.spy(),
+        warn: sinon.spy(),
         info: sinon.spy()
       },
       logAccess: sinon.spy()
     };
 
-    reset = Broker.__set__({
-      Backend: sinon.spy(function () {
-        this.sendRaw = sinon.stub().yields();   // eslint-disable-line no-invalid-this
-      }),
-      fs: {
-        unlinkSync: sinon.spy()
-      },
-      http: {
-        createServer: sinon.stub().returns({
-          listen: sinon.spy(),
-          on: sinon.spy()
-        })
-      },
-      net: {
-        connect: sinon.stub().returns({
-          on: sinon.spy()
-        })
-      },
-      WebSocketServer: sinon.spy(function () {
+
+    mockrequire('../../lib/service/Backend', sinon.spy(function () {
+      this.sendRaw = sinon.stub().yields();   // eslint-disable-line no-invalid-this
+    }));
+
+    mockrequire('fs', {unlinkSync: sinon.stub()});
+    mockrequire('http', {
+      createServer: sinon.stub().returns({
+        listen: sinon.spy(),
+        on: sinon.spy()
+      })
+    });
+
+    mockrequire('net', {
+      connect: sinon.stub().returns({
+        on: sinon.spy()
+      })
+    });
+
+    mockrequire('ws', {
+      Server: sinon.spy(function () {
         this.close = sinon.stub().yields();   // eslint-disable-line no-invalid-this
         this.on = sinon.spy();                // eslint-disable-line no-invalid-this
       })
     });
+
+    mockrequire.reRequire('../../lib/service/Broker');
+    Broker = rewire('../../lib/service/Broker');
+
     broker = new Broker();
     broker.init(proxy, {
       socket: 'socket'
@@ -62,7 +70,7 @@ describe('service/broker', () => {
   });
 
   afterEach(() => {
-    reset();
+    mockrequire.stopAll();
   });
 
   describe('#initiateServer', () => {
@@ -169,7 +177,7 @@ describe('service/broker', () => {
   });
 
   describe('#onConnection', () => {
-    it('should register the backend and send it the active connections', (done) => {
+    it('should register the backend', (done) => {
       proxy.clientConnectionStore.getAll.returns([
         'foo',
         'bar'
@@ -178,21 +186,16 @@ describe('service/broker', () => {
 
       broker.onConnection('socket');
 
-      const backend = Broker.__get__('Backend').firstCall.returnValue;
-
-      should(backend.sendRaw)
-        .be.calledWith('connection', 'foo')
-        .be.calledWith('connection', 'bar');
+      should(Broker.__get__('Backend'))
+        .be.calledOnce();
     });
 
     it('should log a different message depending on the connection type', () => {
       broker.config.socket = false;
 
-      broker.onConnection({
-        upgradeReq: {
-          connection: {
-            remoteAddress: 'remoteAddress'
-          }
+      broker.onConnection({}, {
+        connection: {
+          remoteAddress: 'remoteAddress'
         }
       });
 
@@ -262,7 +265,7 @@ describe('service/broker', () => {
         broker.onError(error);
         should(proxy.log.error)
           .be.calledOnce()
-          .be.calledWith('An error occurred with the broker socket, shutting down; Reason:\n%s', error.stack);
+          .be.calledWith('An error occurred with the broker socket, shutting down; Reason "%s":\n%s', error.message, error.stack);
 
         should(Broker.__get__('process').exit)
           .be.calledOnce()
@@ -285,9 +288,11 @@ describe('service/broker', () => {
     it('should send the request to the backend', () => {
       const
         backend = {
+          active: true,
           send: sinon.stub().yields()
         },
         cb = sinon.spy();
+
       proxy.backendHandler.getBackend.returns(backend);
 
       broker.brokerCallback('room', 'id', 'connectionId', 'data', cb);

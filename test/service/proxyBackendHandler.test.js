@@ -4,7 +4,7 @@ var
   ProxyBackendHandler = require.main.require('lib/service/ProxyBackendHandler');
 
 describe('Test: service/ProxyBackendHandler', function () {
-  var
+  let
     sandbox;
 
   before(() => {
@@ -37,30 +37,42 @@ describe('Test: service/ProxyBackendHandler', function () {
     should(backendHandler.currentBackend).be.eql(null);
   });
 
-  it('method addBackend close the previous backend connection before attaching a new one if it exists', () => {
-    var
-      backendMode = 'standard',
-      backendHandler = new ProxyBackendHandler(backendMode),
-      dummyBackend = {dummy: 'backend'},
-      onCloseSpy = sandbox.spy();
+  it('method addBackend sets the incoming backend as pending to keep the object alive', () => {
+    const
+      backend = {foo: 'bar'},
+      backendHandler = new ProxyBackendHandler('standard');
 
-    backendHandler.currentBackend = {onConnectionClose: onCloseSpy};
+    backendHandler.addBackend(backend);
 
-    backendHandler.addBackend(dummyBackend);
-
-    should(onCloseSpy.calledOnce).be.true();
-    should(backendHandler.currentBackend).be.eql(dummyBackend);
+    should(backendHandler.pendingBackend)
+      .be.exactly(backend);
   });
 
-  it('method addBackend does not close the previous backend connection before attaching a new one if it does not exist', () => {
-    var
+  it('method activateBackend deny attaching a new backend if a backend already exists', () => {
+    const
+      backendMode = 'standard',
+      backendHandler = new ProxyBackendHandler(backendMode),
+      currentBackend = {backend: 'current', socketIp: '1.2.3.4'},
+      dummyBackend = {backend: 'dummy', socketIp: '1.2.3.4'};
+
+    backendHandler.currentBackend = currentBackend;
+    backendHandler.pendingBackend = dummyBackend;
+
+    should(function() {backendHandler.activateBackend();}).throw('Failed to activate connection with backend 1.2.3.4: a backend is already active.');
+
+    should(backendHandler.currentBackend).be.eql(currentBackend);
+  });
+
+  it('method activateBackend attaches a new backend if no backend exists', () => {
+    const
       backendMode = 'standard',
       backendHandler = new ProxyBackendHandler(backendMode),
       dummyBackend = {dummy: 'backend'};
 
+    backendHandler.pendingBackend = dummyBackend;
     backendHandler.currentBackend = null;
 
-    backendHandler.addBackend(dummyBackend);
+    backendHandler.activateBackend();
 
     should(backendHandler.currentBackend).be.eql(dummyBackend);
   });

@@ -1,11 +1,20 @@
 'use strict';
 
 const
+  proxyquire = require('proxyquire'),
   should = require('should'),
   sinon = require('sinon'),
-  rewire = require('rewire'),
-  Router = rewire('../../lib/service/Router'),
-  ServiceUnavailableError = require('kuzzle-common-objects').errors.ServiceUnavailableError;
+  Request = require('kuzzle-common-objects').Request,
+  requestStub = sinon.spy(function () {
+    return new Request({requestId: 'requestId', foo: 'bar'}, {connectionId: 'connectionId', protocol: 'protocol'});
+  }),
+  {
+    InternalError: KuzzleInternalError,
+    ServiceUnavailableError
+  } = require('kuzzle-common-objects').errors,
+  Router = proxyquire('../../lib/service/Router', {
+    'kuzzle-common-objects': {Request: requestStub}
+  });
 
 describe('#Test: service/Router', function () {
   let
@@ -20,7 +29,7 @@ describe('#Test: service/Router', function () {
   beforeEach(() => {
     proxy = {
       backendHandler: {
-        getBackend: sinon.stub().returns({})
+        getBackend: sinon.stub().returns({active: true})
       },
       broker: {
         addClientConnection: sinon.spy(),
@@ -37,18 +46,25 @@ describe('#Test: service/Router', function () {
 
   afterEach(() => {
     sandbox.restore();
+    requestStub.reset();
   });
 
   describe('#constructor', () => {
     it('method constructor initializes the object properly', () => {
-      should(Router.__get__('_proxy'))
-        .be.exactly(proxy);
+      should(router.proxy).be.exactly(proxy);
     });
   });
 
   describe('#newConnection', () => {
     it('should throw if no backend is available', () => {
       proxy.backendHandler.getBackend.returns(undefined);
+
+      return should(() => router.newConnection({}))
+        .throw(ServiceUnavailableError, {message: 'No Kuzzle instance found'});
+    });
+
+    it('should throw if no backend is active', () => {
+      proxy.backendHandler.getBackend.returns({active: false});
 
       return should(() => router.newConnection({}))
         .throw(ServiceUnavailableError, {message: 'No Kuzzle instance found'});
@@ -65,43 +81,33 @@ describe('#Test: service/Router', function () {
   });
 
   describe('#execute', () => {
-    let
-      request;
-
-    beforeEach(() => {
+    const
       request = {
-        id: 'requestId',
-        context: {
-          connectionId: 'connectionId'
-        },
-        response: 'response',
-        serialize: sinon.stub().returns('serializedRequest'),
-        setError: sinon.spy()
+        payload: {requestId: 'requestId', foo: 'bar'},
+        connectionId: 'connectionId',
+        protocol: 'protocol'
       };
-    });
 
     it('should call the broker callback with a cb that properly handles errors back from Kuzzle', () => {
       const
         cb = sinon.spy(),
-        error = new Error('test');
+        error = new KuzzleInternalError('test');
 
       router.execute(request, cb);
+      should(requestStub).be.calledOnce();
+      should(requestStub).be.calledWith(request.payload, {connectionId: request.connectionId, protocol: request.protocol});
 
       should(proxy.broker.brokerCallback)
         .be.calledOnce()
-        .be.calledWith('request', request.id, request.context.connectionId, 'serializedRequest');
+        .be.calledWithMatch('request', 'requestId', request.connectionId, {data: request.payload});
 
       const brokerCb = proxy.broker.brokerCallback.firstCall.args[4];
 
       brokerCb(error);
 
-      should(request.setError)
-        .be.calledOnce()
-        .be.calledWith(error);
-
       should(cb)
         .be.calledOnce()
-        .be.calledWith('response');
+        .be.calledWithMatch({status: 500, requestId: 'requestId', content: {error: error}});
     });
 
     it('should call the broker callback with a cb that handles success', () => {
@@ -109,6 +115,8 @@ describe('#Test: service/Router', function () {
         cb = sinon.spy();
 
       router.execute(request, cb);
+      should(requestStub).be.calledOnce();
+      should(requestStub).be.calledWith(request.payload, {connectionId: request.connectionId, protocol: request.protocol});
 
       const brokerCb = proxy.broker.brokerCallback.firstCall.args[4];
 
