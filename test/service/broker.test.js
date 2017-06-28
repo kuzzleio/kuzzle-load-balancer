@@ -53,7 +53,7 @@ describe('service/broker', () => {
       })
     });
 
-    mockrequire('ws', {
+    mockrequire('uws', {
       Server: sinon.spy(function () {
         this.close = sinon.stub().yields();   // eslint-disable-line no-invalid-this
         this.on = sinon.spy();                // eslint-disable-line no-invalid-this
@@ -193,9 +193,11 @@ describe('service/broker', () => {
     it('should log a different message depending on the connection type', () => {
       broker.config.socket = false;
 
-      broker.onConnection({}, {
-        connection: {
-          remoteAddress: 'remoteAddress'
+      broker.onConnection({
+        upgradeReq: {
+          connection: {
+            remoteAddress: 'remoteAddress'
+          }
         }
       });
 
