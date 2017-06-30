@@ -85,16 +85,16 @@ describe('/service/protocol/Websocket', function () {
       onClientSpy = sinon.stub(),
       clientSocketMock = {
         on: onClientSpy,
-        close: sinon.stub()
-      },
-      req = {
-        connection: {
-          remoteAddress: 'ip'
-        },
-        url: '/',
-        headers: {
-          'X-Foo': 'bar',
-          'x-forwarded-for': '1.1.1.1,2.2.2.2'
+        close: sinon.stub(),
+        upgradeReq: {
+          connection: {
+            remoteAddress: 'ip'
+          },
+          url: '/',
+          headers: {
+            'X-Foo': 'bar',
+            'x-forwarded-for': '1.1.1.1,2.2.2.2'
+          }
         }
       };
 
@@ -109,7 +109,7 @@ describe('/service/protocol/Websocket', function () {
         clientDisconnectionStub = sinon.stub(ws, 'onClientDisconnection'),
         clientMessageStub = sinon.stub(ws, 'onClientMessage');
 
-      ws.onConnection(clientSocketMock, req);
+      ws.onConnection(clientSocketMock);
 
       should(onClientSpy.callCount).be.eql(3);
       should(onClientSpy.firstCall.args[0]).be.eql('close');
@@ -150,7 +150,7 @@ describe('/service/protocol/Websocket', function () {
 
       proxy.router.newConnection = sinon.stub().throws(error);
 
-      ws.onConnection(clientSocketMock, req);
+      ws.onConnection(clientSocketMock);
 
       should(onClientSpy.callCount).be.eql(0);
       should(clientSocketMock.close.called).be.true();
@@ -159,9 +159,9 @@ describe('/service/protocol/Websocket', function () {
     });
 
     it('should do nothing if message is for socket.io', () => {
-      req.url = '/socket.io/roomid';
+      clientSocketMock.upgradeReq.url = '/socket.io/roomid';
 
-      should(ws.onConnection(clientSocketMock, req))
+      should(ws.onConnection(clientSocketMock))
         .be.false();
 
     });
@@ -386,7 +386,7 @@ describe('/service/protocol/Websocket', function () {
     });
   });
 
-  describe('#onMessage', function () {
+  describe('#onMessage', () => {
     const
       goodConnection = {
         id: goodId,

@@ -1,6 +1,6 @@
 {
   "name": "kuzzle-proxy",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Kuzzle proxy multiplexer",
   "main": "lib/index.js",
   "scripts": {
@@ -22,7 +22,6 @@
   },
   "dependencies": {
     "async": "^2.4.1",
-    "bufferutil": "^3.0.1",
     "busboy": "0.2.14",
     "bytes": "^2.5.0",
     "debug": "^2.6.6",
@@ -30,16 +29,15 @@
     "moment": "^2.18.1",
     "rc": "^1.2.1",
     "socket.io": "^2.0.3",
-    "utf-8-validate": "^3.0.2",
     "uuid": "3.1.0",
+    "uws": "^8.14.0",
     "winston": "^2.3.1",
     "winston-elasticsearch": "^0.5.0",
-    "winston-syslog": "^1.2.6",
-    "ws": "3.0.0"
+    "winston-syslog": "^1.2.6"
   },
   "devDependencies": {
     "codecov.io": "^0.1.6",
-    "eslint": "^3.19.0",
+    "eslint": "3.19.0",
     "istanbul": "0.4.5",
     "mocha": "3.4.2",
     "mock-require": "^2.0.2",
@@ -47,7 +45,7 @@
     "rewire": "2.5.2",
     "should": "11.2.1",
     "should-sinon": "0.0.5",
-    "sinon": "2.3.2"
+    "sinon": "2.3.5"
   },
   "engines": {
     "node": ">= 6.9.1 <7.0.0"
