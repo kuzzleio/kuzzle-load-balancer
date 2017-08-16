@@ -2,7 +2,7 @@
 
 # Kuzzle Proxy
 
-Node.js proxy and multiplexer.
+Reverse proxy and multiplexer for [Kuzzle Backend](https://github.com/kuzzleio/kuzzle).
 
 # Configuration
 
