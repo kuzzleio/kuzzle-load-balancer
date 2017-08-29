@@ -6,7 +6,7 @@ const
   rewire = require('rewire'),
   PendingRequest = rewire('../../lib/store/PendingRequest'),
   PendingItem = require('../../lib/store/PendingItem'),
-  InternalError = require('kuzzle-common-objects').errors.InternalError;
+  GatewayTimeoutError = require('kuzzle-common-objects').errors.GatewayTimeoutError;
 
 describe('Test: store/PendingRequest', function () {
   let
@@ -109,7 +109,7 @@ describe('Test: store/PendingRequest', function () {
 
     should(cb.called).be.true();
     should(cb.firstCall.args.length).be.eql(1);
-    should(cb.firstCall.args[0]).be.instanceOf(InternalError);
+    should(cb.firstCall.args[0]).be.instanceOf(GatewayTimeoutError);
     should(cb.firstCall.args[0].message).startWith('Kuzzle was too long to respond');
 
     clock.restore();
