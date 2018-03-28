@@ -68,7 +68,7 @@ describe('/service/protocol/Websocket', function () {
   });
 
   afterEach(() => {
-    sendSpy.reset();
+    sendSpy.resetHistory();
   });
 
   describe('#init', function () {
@@ -100,8 +100,8 @@ describe('/service/protocol/Websocket', function () {
 
     beforeEach(() => {
       ws.init(proxy);
-      onClientSpy.reset();
-      clientSocketMock.close.reset();
+      onClientSpy.resetHistory();
+      clientSocketMock.close.resetHistory();
     });
 
     it('should bind proper listeners', () => {
@@ -131,8 +131,8 @@ describe('/service/protocol/Websocket', function () {
       should(clientDisconnectionStub.callCount).be.eql(2);
       should(clientMessageStub.callCount).be.eql(1);
 
-      clientDisconnectionStub.reset();
-      clientMessageStub.reset();
+      clientDisconnectionStub.resetHistory();
+      clientMessageStub.resetHistory();
       should(Object.keys(ws.connectionPool).length).be.eql(1);
 
       should(ws.connectionPool.id)
@@ -527,7 +527,7 @@ describe('/service/protocol/Websocket', function () {
   describe('#onClientDisconnection', function () {
     beforeEach(() => {
       ws.init(proxy);
-      proxy.router.removeConnection.reset();
+      proxy.router.removeConnection.resetHistory();
     });
 
     it('should do nothing if the client is unknown', function () {

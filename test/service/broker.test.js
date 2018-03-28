@@ -36,7 +36,7 @@ describe('service/broker', () => {
 
 
     mockrequire('../../lib/service/Backend', sinon.spy(function () {
-      this.sendRaw = sinon.stub().yields();   // eslint-disable-line no-invalid-this
+      this.sendRaw = sinon.stub().yields(); // eslint-disable-line no-invalid-this
     }));
 
     mockrequire('fs', {unlinkSync: sinon.stub()});
@@ -55,8 +55,8 @@ describe('service/broker', () => {
 
     mockrequire('uws', {
       Server: sinon.spy(function () {
-        this.close = sinon.stub().yields();   // eslint-disable-line no-invalid-this
-        this.on = sinon.spy();                // eslint-disable-line no-invalid-this
+        this.close = sinon.stub().yields(); // eslint-disable-line no-invalid-this
+        this.on = sinon.spy(); // eslint-disable-line no-invalid-this
       })
     });
 
@@ -103,7 +103,7 @@ describe('service/broker', () => {
       const listen = Broker.__get__('http').createServer.firstCall.returnValue.listen;
 
       should(listen)
-        .be.calledTwice()   /// first call is done by beforeEach
+        .be.calledTwice() // first call is done by beforeEach
         .be.calledWith(1234);
 
       const initCB = listen.firstCall.args[1];
@@ -129,7 +129,7 @@ describe('service/broker', () => {
       const listen = Broker.__get__('http').createServer.firstCall.returnValue.listen;
 
       should(listen)
-        .be.calledTwice()   /// first call is done by beforeEach
+        .be.calledTwice() // first call is done by beforeEach
         .be.calledWith(1234, 'host');
     });
 

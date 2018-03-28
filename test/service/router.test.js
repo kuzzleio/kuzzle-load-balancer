@@ -46,7 +46,7 @@ describe('#Test: service/Router', function () {
 
   afterEach(() => {
     sandbox.restore();
-    requestStub.reset();
+    requestStub.resetHistory();
   });
 
   describe('#constructor', () => {
