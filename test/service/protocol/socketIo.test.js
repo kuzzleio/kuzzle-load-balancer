@@ -99,9 +99,9 @@ describe('/service/protocol/SocketIo', function () {
   });
 
   afterEach(() => {
-    onClientSpy.reset();
-    clientSocketMock.emit.reset();
-    clientSocketMock.disconnect.reset();
+    onClientSpy.resetHistory();
+    clientSocketMock.emit.resetHistory();
+    clientSocketMock.disconnect.resetHistory();
   });
 
   describe('#init', function () {
@@ -145,8 +145,8 @@ describe('/service/protocol/SocketIo', function () {
       should(clientDisconnectionStub.callCount).be.eql(2);
       should(clientMessageStub.callCount).be.eql(1);
 
-      clientDisconnectionStub.reset();
-      clientMessageStub.reset();
+      clientDisconnectionStub.resetHistory();
+      clientMessageStub.resetHistory();
       should(Object.keys(io.sockets).length).be.eql(1);
       should(io.sockets.connectionId)
         .match(clientSocketMock);
@@ -215,7 +215,7 @@ describe('/service/protocol/SocketIo', function () {
     beforeEach(() => {
       io.init(proxy);
       io.sockets.connectionId = clientSocketMock;
-      clientSocketMock.join.reset();
+      clientSocketMock.join.resetHistory();
     });
 
     it('should link an id with a channel', function () {
@@ -262,7 +262,7 @@ describe('/service/protocol/SocketIo', function () {
     beforeEach(() => {
       io.init(proxy);
       io.sockets.connectionId = clientSocketMock;
-      emitStub.reset();
+      emitStub.resetHistory();
     });
 
     it('should do nothing if the data is undefined', function () {
