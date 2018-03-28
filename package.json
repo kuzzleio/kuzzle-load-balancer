@@ -21,18 +21,18 @@
     "url": "https://github.com/kuzzleio/kuzzle-proxy.git"
   },
   "dependencies": {
-    "async": "^2.4.1",
+    "async": "^2.6.0",
     "busboy": "0.2.14",
     "bytes": "^3.0.0",
     "debug": "^3.1.0",
     "kuzzle-common-objects": "3.0.7",
-    "moment": "^2.18.1",
-    "rc": "^1.2.1",
-    "socket.io": "^2.0.3",
+    "moment": "^2.21.0",
+    "rc": "^1.2.6",
+    "socket.io": "^2.0.4",
     "uuid": "3.2.1",
     "uws": "^9.14.0",
-    "winston": "^2.3.1",
-    "winston-elasticsearch": "^0.5.0",
+    "winston": "^2.4.1",
+    "winston-elasticsearch": "^0.5.8",
     "winston-syslog": "^2.0.0"
   },
   "devDependencies": {
