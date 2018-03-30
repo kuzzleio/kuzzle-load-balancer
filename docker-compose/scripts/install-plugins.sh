@@ -8,7 +8,7 @@ do
   then
     echo 'Installing dependencies for plugin' $(basename $plugin)
     cd $plugin
-    npm install
+    npm install --unsafe
   fi
 done
 

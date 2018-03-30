@@ -1,8 +1,0 @@
-{
-  "apps": [{
-    "name": "KuzzleProxy",
-    "script": "index.js",
-    "watch": ["lib"],
-    "node_args": "--debug=7003"
-  }]
-}

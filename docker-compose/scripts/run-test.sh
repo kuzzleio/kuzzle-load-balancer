@@ -7,7 +7,7 @@ cd $APP_DIRECTORY
 
 echo "[$(date --rfc-3339 seconds)] - Installing Kuzzle Proxy dependencies..."
 
-npm install
+npm install --unsafe
 
 sleep 1
 
