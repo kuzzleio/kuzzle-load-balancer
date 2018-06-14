@@ -18,7 +18,9 @@
     "access": {
       "transport": "console",
       "level": "info",
-      "stderrLevels": []
+      "stderrLevels": [],
+      "silent": true,
+      "format": "simple"
     },
     "error": {
       "transport": "console",

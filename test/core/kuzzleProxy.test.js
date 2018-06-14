@@ -31,10 +31,17 @@ describe('lib/core/KuzzleProxy', () => {
     mockrequire('../../lib/service/protocol/Websocket', initStub);
     mockrequire('../../lib/service/protocol/SocketIo', initStub);
     mockrequire('winston', {
-      Logger: sinon.spy(),
+      createLogger: sinon.spy(),
       transports: {
         Console: winstonTransportConsole,
         File: winstonTransportFile
+      },
+      format: {
+        simple: sinon.stub().returns('format.simple'),
+        json: sinon.stub().returns('format.json'),
+        colorize: sinon.stub().returns('format.colorize'),
+        timestamp: sinon.stub().returns('format.timestamp'),
+        prettyPrint: sinon.stub().returns('format.prettyPrint')
       }
     });
     mockrequire('winston-elasticsearch', winstonTransportElasticsearch);
@@ -229,14 +236,11 @@ describe('lib/core/KuzzleProxy', () => {
     it('should support all available transports', () => {
       proxy.config.logs.access = [{
         level: 'level',
-        silent: 'silent',
-        colorize: 'colorize',
-        timestamp: 'timestamp',
-        json: 'json',
-        stringify: 'stringify',
-        prettyPrint: 'prettyPrint',
-        depth: 'depth',
-        showLevel: 'showLevel'
+        silent: true,
+        colorize: true,
+        timestamp: true,
+        prettyPrint: true,
+        depth: 'depth'
       }];
       proxy.config.logs.access.push(Object.assign({}, proxy.config.logs.access));
       proxy.config.logs.errors = [Object.assign({}, proxy.config.logs.access)];
@@ -289,14 +293,12 @@ describe('lib/core/KuzzleProxy', () => {
         .be.calledOnce()
         .be.calledWithMatch({
           level: 'level',
-          silent: 'silent',
-          colorize: 'colorize',
-          timestamp: 'timestamp',
-          json: 'json',
-          stringify: 'stringify',
-          prettyPrint: 'prettyPrint',
+          silent: true,
+          colorize: 'format.colorize',
+          timestamp: 'format.timestamp',
+          format: 'format.json',
+          prettyPrint: 'format.prettyPrint',
           depth: 'depth',
-          showLevel: 'showLevel',
           humanReadableUnhandledException: 'humanReadableUnhandledException'
         });
     });
@@ -312,7 +314,6 @@ describe('lib/core/KuzzleProxy', () => {
           stringify: 'stringify',
           prettyPrint: 'prettyPrint',
           depth: 'depth',
-          showLevel: 'showLevel'
         }],
         Rewired = rewire('../../lib/core/KuzzleProxy'),
         errorStub = sinon.stub();
@@ -437,7 +438,8 @@ describe('lib/core/KuzzleProxy', () => {
           }
         },
         result = {
-          status: 'status'
+          status: 'status',
+          content: 'foobar'
         };
 
       proxy.clientConnectionStore.get = sinon.stub().returns(connection);
@@ -448,7 +450,7 @@ describe('lib/core/KuzzleProxy', () => {
 
       should(proxy.loggers.access.info)
         .be.calledOnce()
-        .be.calledWithMatch(/^1\.1\.1\.1 - admin \[\d\d\/[A-Z][a-z]{2}\/\d{4}:\d\d:\d\d:\d\d [+-]\d{4}] "METHOD url HTTP\/1\.1" status 9 "http:\/\/referer.com" "user agent"$/);
+        .be.calledWithMatch(/^1\.1\.1\.1 - admin \[\d\d\/[A-Z][a-z]{2}\/\d{4}:\d\d:\d\d:\d\d [+-]\d{4}] "METHOD url HTTP\/1\.1" status 8 "http:\/\/referer.com" "user agent"$/);
     });
 
     it('should use the error status in priority', () => {
@@ -476,7 +478,8 @@ describe('lib/core/KuzzleProxy', () => {
         },
         error = new Error('test'),
         result = {
-          status: 'status'
+          status: 'status',
+          content: 'foobar'
         };
 
       proxy.config.logs.accessLogFormat = 'combined';
@@ -485,14 +488,14 @@ describe('lib/core/KuzzleProxy', () => {
       proxy.logAccess(1, request, error, result);
       should(proxy.loggers.access.info)
         .be.calledOnce()
-        .be.calledWithMatch(/^2\.2\.2\.2 - admin \[\d\d\/[A-Z][a-z]{2}\/\d{4}:\d\d:\d\d:\d\d [+-]\d{4}] "DO \/controller\/action\/index\/collection\/id\?foo=bar WEBSOCKET" 500 9 "http:\/\/referer\.com" "user agent"/);
+        .be.calledWithMatch(/^2\.2\.2\.2 - admin \[\d\d\/[A-Z][a-z]{2}\/\d{4}:\d\d:\d\d:\d\d [+-]\d{4}] "DO \/controller\/action\/index\/collection\/id\?foo=bar WEBSOCKET" 500 8 "http:\/\/referer\.com" "user agent"/);
 
       error.status = 'ERR';
       proxy.logAccess(1, request, error, result);
       should(proxy.loggers.access.info)
         .be.calledTwice();
       should(proxy.loggers.access.info.secondCall.args[0])
-        .match(/^2\.2\.2\.2 - admin \[\d\d\/[A-Z][a-z]{2}\/\d{4}:\d\d:\d\d:\d\d [+-]\d{4}] "DO \/controller\/action\/index\/collection\/id\?foo=bar WEBSOCKET" ERR 9 "http:\/\/referer\.com" "user agent"/);
+        .match(/^2\.2\.2\.2 - admin \[\d\d\/[A-Z][a-z]{2}\/\d{4}:\d\d:\d\d:\d\d [+-]\d{4}] "DO \/controller\/action\/index\/collection\/id\?foo=bar WEBSOCKET" ERR 8 "http:\/\/referer\.com" "user agent"/);
     });
 
     it('should extract the user from Basic auth header', () => {

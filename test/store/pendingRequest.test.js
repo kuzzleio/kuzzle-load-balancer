@@ -10,20 +10,18 @@ const
 
 describe('Test: store/PendingRequest', function () {
   let
-    sandbox = sinon.sandbox.create(),
     spyClearTimeout,
     spySetTimeout;
 
   beforeEach(() => {
-    spyClearTimeout = sandbox.stub();
-    spySetTimeout = sandbox.stub();
+    spyClearTimeout = sinon.stub();
+    spySetTimeout = sinon.stub();
 
     PendingRequest.__set__('setTimeout', spySetTimeout);
     PendingRequest.__set__('clearTimeout', spyClearTimeout);
   });
 
   afterEach(() => {
-    sandbox.restore();
   });
 
   it('constructor must initialize pending', () => {

@@ -1,18 +1,10 @@
-var
+const
   should = require('should'),
   sinon = require('sinon'),
   ProxyBackendHandler = require.main.require('lib/service/ProxyBackendHandler');
 
 describe('Test: service/ProxyBackendHandler', function () {
-  let
-    sandbox;
-
-  before(() => {
-    sandbox = sinon.sandbox.create();
-  });
-
-  beforeEach(() => {
-  });
+  const sandbox = sinon.createSandbox();
 
   afterEach(() => {
     sandbox.restore();

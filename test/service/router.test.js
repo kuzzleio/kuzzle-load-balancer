@@ -17,14 +17,10 @@ const
   });
 
 describe('#Test: service/Router', function () {
+  const sandbox = sinon.createSandbox();
   let
-    sandbox,
     proxy,
     router;
-
-  before(() => {
-    sandbox = sinon.sandbox.create();
-  });
 
   beforeEach(() => {
     proxy = {

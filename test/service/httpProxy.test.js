@@ -53,7 +53,7 @@ describe('/service/httpProxy', () => {
 
   describe('#init', () => {
     const
-      sandbox = sinon.sandbox.create(),
+      sandbox = sinon.createSandbox(),
       request = {
         url: 'url',
         method: 'method',
@@ -130,7 +130,7 @@ describe('/service/httpProxy', () => {
         cb(request, response);
 
         should(request.resume).be.calledOnce();
-        console.log(HttpProxy.__get__('replyWithError').firstCall.args);
+
         should(HttpProxy.__get__('replyWithError'))
           .be.calledOnce()
           .be.calledWithMatch(proxy, /^[0-9a-w-]+$/, {url: request.url, method: request.method}, response, {message: 'Error: maximum HTTP request size exceeded'});
