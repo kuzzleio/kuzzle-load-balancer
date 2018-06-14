@@ -44,13 +44,29 @@
   //
   // configuration of the http proxy server for Kuzzle
   // options
-  //   enabled: true/false (if http is disabled, the server will be started only websocket and socketio protocols). Default to "true"
-  //   maxFormFileSize: the size limit of a file (for upload requests). If it's a string, the
-  //       value is passed to the "bytes" library (https://www.npmjs.com/package/bytes).
-  //       If this is a number, then the value specifies the number of bytes.
+  //   * enabled: true/false (if http is disabled, the server will be started only
+  //     websocket and socketio protocols). Default to "true"
+  //   * maxFormFileSize: the size limit of a file (for upload requests). If it's a
+  //     string, the value is passed to the "bytes" library
+  //     (https://www.npmjs.com/package/bytes).
+  //     If this is a number, then the value specifies the number of bytes.
+  //   * maxEncodingLayers:
+  //     Maximum number of encoding layers that can be applied
+  //     to an http message, using the Content-Encoding header.
+  //     This parameter is meant to prevent abuses by setting an
+  //     abnormally large number of encodings, forcing Kuzzle to
+  //     allocate as many decoders to handle the incoming request.
+  //   * allowCompression:
+  //     Enable support for compressed requests, using the
+  //     Content-Encoding header
+  //     Currently supported compression algorithms: gzip, deflate, identity
+  //     Note: "identity" is always an accepted value, even if
+  //     compression support is disabled
   "http": {
     "enabled": true,
-    "maxFormFileSize": "1MB"
+    "maxFormFileSize": "1MB",
+    "allowCompression": true,
+    "maxEncodingLayers": 3
   },
   // TCP port to listen to
   "port": 7512,

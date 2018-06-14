@@ -1,4 +1,4 @@
--b
+--bail
 -r should
 -r should-sinon
 --reporter spec

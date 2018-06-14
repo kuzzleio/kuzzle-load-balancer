@@ -1,18 +1,59 @@
-'use strict';
-
 const
-  rewire = require('rewire'),
   mockrequire = require('mock-require'),
+  HttpFormDataStream = require('../../lib/service/HttpFormDataStream'),
+  {
+    KuzzleError,
+    SizeLimitError,
+    BadRequestError
+  } = require('kuzzle-common-objects').errors,
   should = require('should'),
-  sinon = require('sinon');
+  sinon = require('sinon'),
+  Writable = require('stream').Writable;
 
-describe('/service/httpProxy', () => {
+describe('#http', () => {
+  const
+    gunzipMock = sinon.stub(),
+    inflateMock = sinon.stub(),
+    identityMock = sinon.stub(),
+    zlibstub = {
+      gzip: sinon.stub(),
+      deflate: sinon.stub(),
+      createGunzip: sinon.stub().returns(gunzipMock),
+      createInflate: sinon.stub().returns(inflateMock)
+    },
+    createServerStub = sinon.stub().returns({
+      listen: sinon.spy()
+    });
   let
-    HttpProxy,
     proxy,
-    httpProxy;
+    HttpProtocol,
+    protocol,
+    response;
+
+  before(() => {
+    [gunzipMock, inflateMock, identityMock].forEach(m => {
+      m.pipe = sinon.stub();
+      m.on = sinon.stub();
+      m.close = sinon.stub();
+    });
+    mockrequire('zlib', zlibstub);
+    mockrequire('http', {
+      createServer: createServerStub
+    });
+    HttpProtocol = mockrequire.reRequire('../../lib/service/HttpProxy');
+  });
+
+  after(() => {
+    mockrequire.stopAll();
+  });
 
   beforeEach(() => {
+    response = {
+      end: sinon.spy(),
+      setHeader: sinon.spy(),
+      writeHead: sinon.spy()
+    };
+
     proxy = {
       broker: {
         brokerCallback: sinon.spy()
@@ -27,439 +68,636 @@ describe('/service/httpProxy', () => {
         maxRequestSize: '100kb',
         http: {
           enabled: true,
-          maxFormFileSize: '100kb'
+          maxFormFileSize: '100kb',
+          allowCompression: true,
+          maxEncodingLayers: 3
         }
       },
       logAccess: sinon.spy()
     };
 
-
-    mockrequire('http', {
-      createServer: sinon.stub().returns({
-        listen: sinon.spy()
-      })
-    });
-
-    mockrequire.reRequire('../../lib/service/HttpProxy');
-    HttpProxy = rewire('../../lib/service/HttpProxy');
-
-    httpProxy = new HttpProxy();
-    httpProxy.init(proxy);
+    protocol = new HttpProtocol();
   });
 
   afterEach(() => {
-    mockrequire.stopAll();
+    Object.keys(zlibstub).forEach(s => zlibstub[s].resetHistory());
+    [gunzipMock, inflateMock, identityMock].forEach(m => {
+      m.resetHistory();
+      ['pipe', 'on', 'close'].forEach(f => m[f].resetHistory());
+    });
+    createServerStub.resetHistory();
   });
 
   describe('#init', () => {
-    const
-      sandbox = sinon.sandbox.create(),
-      request = {
-        url: 'url',
-        method: 'method',
-        httpVersion: '1.1',
-        socket: {
-          remoteAddress: '1.1.1.1'
-        }
-      },
-      multipart = [
-        '-----------------------------165748628625109734809700179',
-        'Content-Disposition: form-data; name="foo"',
-        '',
-        'bar',
-        '-----------------------------165748628625109734809700179',
-        'Content-Disposition: form-data; name="baz"; filename="test-multipart.txt"',
-        'Content-Type: text/plain',
-        '',
-        'YOLO\n\n\n',
-        '-----------------------------165748628625109734809700179--'
-      ].join('\r\n'),
-      response = {
-        writeHead: sandbox.spy()
-      };
-
-    beforeEach(() => {
-      request.headers = {
-        'x-forwarded-for': '2.2.2.2',
-        'x-foo': 'bar'
-      };
-      request.on = sandbox.spy();
-      request.resume = sandbox.spy();
-      request.removeAllListeners = sandbox.stub().returnsThis();
-    });
-
-    afterEach(() => {
-      sandbox.restore();
-    });
-
-    it('should throw if an invalid maxRequestSize is given', () => {
+    it('should throw if an invalid maxRequestSize parameter is set', () => {
       proxy.config.maxRequestSize = 'invalid';
 
-      return should(() => httpProxy.init(proxy))
-        .throw('Invalid HTTP "maxRequestSize" parameter');
+      return should(() => protocol.init(proxy))
+        .throw('Invalid "maxRequestSize" parameter value: expected a numeric value');
     });
 
-    it('should throw if an invalid maxFormFileSize is given', () => {
+    it('should throw if an invalid maxFormFileSize parameter is set', () => {
       proxy.config.http.maxFormFileSize = 'invalid';
 
-      return should(() => httpProxy.init(proxy))
-        .throw('Invalid HTTP "maxFormFileSize" parameter');
+      return should(() => protocol.init(proxy))
+        .throw('Invalid "maxFormFileSize" parameter value: expected a numeric value');
     });
 
-    it('should throw if no port is given', () => {
-      delete proxy.config.port;
+    it('should throw if an invalid maxEncodingLayers parameter is set', () => {
+      proxy.config.http.maxEncodingLayers = 'invalid';
 
-      return should(() => httpProxy.init(proxy))
-        .throw('No HTTP port configured.');
+      return should(() => protocol.init(proxy))
+        .throw('Invalid "maxEncodingLayers" parameter value: expected a numeric value');
     });
 
-    it('should init the http server', () => {
-      should(httpProxy.server.listen)
-        .be.calledOnce()
-        .be.calledWith(proxy.config.port, proxy.config.host);
+    it('should throw if an invalid allowCompression parameter is set', () => {
+      proxy.config.http.allowCompression = 'foobar';
+
+      return should(() => protocol.init(proxy))
+        .throw('Invalid "allowCompression" parameter value: expected a boolean value');
     });
 
-    it('should respond with error if the request is too big', () => {
-      HttpProxy.__with__({
-        replyWithError: sandbox.spy()
-      })(() => {
-        const cb = HttpProxy.__get__('http').createServer.firstCall.args[0];
+    it('should configure the zlib decoders', () => {
+      protocol.init(proxy);
 
-        request.headers['content-length'] = 9999999999;
-
-        cb(request, response);
-
-        should(request.resume).be.calledOnce();
-        console.log(HttpProxy.__get__('replyWithError').firstCall.args);
-        should(HttpProxy.__get__('replyWithError'))
-          .be.calledOnce()
-          .be.calledWithMatch(proxy, /^[0-9a-w-]+$/, {url: request.url, method: request.method}, response, {message: 'Error: maximum HTTP request size exceeded'});
-      });
+      should(Object.keys(protocol.decoders).sort()).eql(['deflate', 'gzip', 'identity']);
+      should(protocol.decoders.gzip).eql(zlibstub.createGunzip);
+      should(protocol.decoders.deflate).eql(zlibstub.createInflate);
+      should(protocol.decoders.identity).be.a.Function();
+      should(protocol.decoders.identity('foobar')).eql(null);
     });
 
-    it('should reply with error if the actual data sent exceeds the maxRequestSize', () => {
-      HttpProxy.__with__({
-        replyWithError: sandbox.spy()
-      })(() => {
-        const cb = HttpProxy.__get__('http').createServer.firstCall.args[0];
+    it('should set decoders with throwables if compression is disabled', () => {
+      const message = 'Compression support is disabled';
 
-        httpProxy.maxRequestSize = 2;
-        cb(request, response);
+      proxy.config.http.allowCompression = false;
+      protocol.init(proxy);
 
-        const dataCB = request.on.firstCall.args[1];
+      should(Object.keys(protocol.decoders).sort()).eql(['deflate', 'gzip', 'identity']);
+      should(protocol.decoders.gzip).Function().and.not.eql(gunzipMock);
+      should(protocol.decoders.deflate).Function().and.not.eql(inflateMock);
+      should(protocol.decoders.identity).be.a.Function();
 
-        dataCB('a slightly too big chunk');
-        should(request.removeAllListeners).be.calledTwice();
-
-        should(HttpProxy.__get__('replyWithError'))
-          .be.calledWithMatch(proxy, /^[0-9a-z-]+$/, {url: request.url, method: request.method}, response, {message: 'Error: maximum HTTP request size exceeded'});
-      });
+      should(() => protocol.decoders.gzip()).throw(BadRequestError, {message});
+      should(() => protocol.decoders.deflate()).throw(BadRequestError, {message});
+      should(protocol.decoders.identity('foobar')).eql(null);
     });
 
-    it('should reply with error if the content type is unsupported', () => {
-      HttpProxy.__with__({
-        replyWithError: sandbox.spy()
-      })(() => {
-        const cb = HttpProxy.__get__('http').createServer.firstCall.args[0];
+    describe('#onRequest', () => {
+      let
+        multipart,
+        onRequest,
+        request;
 
-        request.headers['content-type'] = 'foo/bar';
+      beforeEach(() => {
+        multipart = [
+          '-----------------------------165748628625109734809700179',
+          'Content-Disposition: form-data; name="foo"',
+          '',
+          'bar',
+          '-----------------------------165748628625109734809700179',
+          'Content-Disposition: form-data; name="baz"; filename="test-multipart.txt"',
+          'Content-Type: text/plain',
+          '',
+          'YOLO\n\n\n',
+          '-----------------------------165748628625109734809700179--'
+        ].join('\r\n');
 
-        cb(request, response);
-
-        should(request.resume).be.calledOnce();
-        should(HttpProxy.__get__('replyWithError'))
-          .be.calledOnce()
-          .be.calledWithMatch(proxy, /^[0-9a-w-]+$/, {url: request.url, method: request.method}, response, {message: 'Unsupported content type: foo/bar'});
-      });
-    });
-
-    it('should handle valid JSON request', (done) => {
-      const resetSendRequest = HttpProxy.__set__('sendRequest', (_proxy, connId, res, pload) => {
-        resetSendRequest();
-        should(pload.content).be.exactly('chunk1chunk2chunk3');
-        done();
-      });
-
-      const cb = HttpProxy.__get__('http').createServer.firstCall.args[0];
-
-      cb(request, response);
-
-      should(proxy.clientConnectionStore.add)
-        .be.calledOnce()
-        .be.calledWithMatch({
-          protocol: 'HTTP/1.1',
-          ips: ['2.2.2.2', '1.1.1.1'],
+        request = {
           headers: {
             'x-forwarded-for': '2.2.2.2',
             'x-foo': 'bar'
+          },
+          httpVersion: '1.1',
+          method: 'method',
+          on: sinon.spy(),
+          removeAllListeners: sinon.stub().returnsThis(),
+          resume: sinon.stub().returnsThis(),
+          socket: {
+            remoteAddress: '1.1.1.1'
+          },
+          url: 'url',
+          emit: sinon.spy(),
+          pipe: sinon.spy(),
+          unpipe: sinon.spy()
+        };
+
+        protocol.init(proxy);
+
+        onRequest = createServerStub.firstCall.args[0];
+
+        protocol._replyWithError = sinon.spy();
+        protocol._sendRequest = sinon.spy();
+      });
+
+      it('should complain if the request is too big', () => {
+        request.headers['content-length'] = Infinity;
+
+        onRequest(request, response);
+
+        should(request.resume).be.calledOnce();
+
+        should(protocol._replyWithError)
+          .be.calledOnce()
+          .be.calledWithMatch(/^[0-9a-w-]+$/, {
+            url: request.url,
+            method: request.method
+          },
+          response,
+          {message: 'Maximum HTTP request size exceeded'});
+      });
+
+      it('should handle json content', done => {
+        request.headers['content-type'] = 'application/json charset=utf-8';
+
+        protocol._sendRequest = (connectionId, resp, payload) => {
+          try {
+            should(payload.content).eql('chunk1chunk2chunk3');
+            done();
+          }
+          catch (e) {
+            done(e);
+          }
+        };
+
+        onRequest(request, response);
+
+        should(request.pipe).calledOnce().calledWith(sinon.match.instanceOf(Writable));
+        const writable = request.pipe.firstCall.args[0];
+
+        writable.write('chunk1');
+        writable.write('chunk2');
+        writable.write('chunk3');
+        writable.emit('finish');
+      });
+
+      it('should handle compressed content', () => {
+        request.headers['content-encoding'] = 'gzip';
+
+        onRequest(request, response);
+
+        should(request.pipe).calledOnce().calledWith(gunzipMock);
+        should(gunzipMock.pipe).calledOnce().calledWith(sinon.match.instanceOf(Writable));
+        should(protocol.decoders.identity).not.called();
+        should(protocol.decoders.deflate).not.called();
+
+        should(protocol.decoders.gzip).calledOnce();
+        should(gunzipMock.on).calledOnce().calledWith('error');
+      });
+
+      it('should reject if there are more compression layers than the configured limit', () => {
+        protocol.maxEncodingLayers = 3;
+        request.headers['content-encoding'] = 'identity, identity, identity, identity';
+
+        onRequest(request, response);
+        should(request.pipe).not.called();
+        should(protocol._replyWithError)
+          .be.calledOnce()
+          .be.calledWithMatch(/^[0-9a-w-]+$/, {
+            url: request.url,
+            method: request.method
+          },
+          response,
+          {message: 'Too many encodings'});
+      });
+
+      it('should reject if an unknown compression algorithm is provided', () => {
+        request.headers['content-encoding'] = 'foobar';
+
+        onRequest(request, response);
+
+        should(protocol._replyWithError)
+          .be.calledOnce()
+          .be.calledWithMatch(/^[0-9a-w-]+$/, {
+            url: request.url,
+            method: request.method
+          },
+          response,
+          {message: 'Unsupported compression algorithm "foobar"'});
+      });
+
+      it('should handle chain pipes properly to match multi-layered compression', () => {
+        protocol.maxEncodingLayers = 5;
+        protocol.decoders.identity = sinon.stub().returns(identityMock);
+        request.headers['content-encoding'] = 'gzip, deflate, iDeNtItY, DEFlate, GzIp';
+
+        onRequest(request, response);
+        should(request.pipe).calledOnce();
+        should(protocol.decoders.gzip).calledTwice();
+        should(protocol.decoders.deflate).calledTwice();
+        should(protocol.decoders.identity).calledOnce();
+
+        // testing the pipe chain
+        should(request.pipe).calledWith(gunzipMock);
+        should(gunzipMock.pipe.firstCall).calledWith(inflateMock);
+        should(inflateMock.pipe.firstCall).calledWith(identityMock);
+        should(identityMock.pipe.firstCall).calledWith(inflateMock);
+        should(inflateMock.pipe.secondCall).calledWith(gunzipMock);
+        should(gunzipMock.pipe.secondCall).calledWith(sinon.match.instanceOf(Writable));
+      });
+
+      it('should handle valid x-www-form-urlencoded request', done => {
+        protocol._sendRequest = (connectionId, resp, payload) => {
+          should(payload.content).be.empty('');
+          should(payload.json.foo).be.exactly('bar');
+          should(payload.json.baz).be.exactly('1234');
+          done();
+        };
+
+        request.headers['content-type'] = 'application/x-www-form-urlencoded';
+
+        onRequest(request, response);
+
+        should(request.pipe).calledOnce().calledWith(sinon.match.instanceOf(HttpFormDataStream));
+        const writable = request.pipe.firstCall.args[0];
+
+        writable.write('foo=bar&baz=1234');
+        writable.emit('finish');
+      });
+
+      it('should handle valid multipart/form-data request', done => {
+        protocol._sendRequest = (connectionId, resp, payload) => {
+          should(payload.content).be.empty('');
+          should(payload.json.foo).be.exactly('bar');
+          should(payload.json.baz.filename).be.exactly('test-multipart.txt');
+          should(payload.json.baz.mimetype).be.exactly('text/plain');
+          should(payload.json.baz.file).be.exactly('WU9MTwoKCg==');
+          done();
+        };
+
+        request.headers['content-type'] = 'multipart/form-data; boundary=---------------------------165748628625109734809700179';
+
+        onRequest(request, response);
+
+        should(request.pipe).calledOnce().calledWith(sinon.match.instanceOf(HttpFormDataStream));
+        const writable = request.pipe.firstCall.args[0];
+
+        writable.write(multipart);
+        writable.emit('finish');
+      });
+
+      it('should reply with error if the actual data sent exceeds the maxRequestSize', done => {
+        protocol.maxRequestSize = 2;
+        request.headers['content-encoding'] = 'gzip';
+        onRequest(request, response);
+
+        should(request.pipe).calledOnce().calledWith(gunzipMock);
+        should(gunzipMock.pipe).calledOnce().calledWith(sinon.match.instanceOf(Writable));
+        const writable = gunzipMock.pipe.firstCall.args[0];
+
+        sinon.spy(writable, 'removeAllListeners');
+        sinon.spy(writable, 'end');
+
+        should(request.on).calledOnce().calledWith('error', sinon.match.func);
+        const errorHandler = request.on.firstCall.args[1];
+
+        writable.on('error', error => {
+          try {
+            should(error).instanceOf(SizeLimitError).match({message: 'Maximum HTTP request size exceeded'});
+
+            // called automatically when a pipe rejects a callback, but not
+            // by our mock obviously
+            errorHandler(error);
+
+            should(request.unpipe).calledOnce();
+            should(request.removeAllListeners).calledOnce();
+            // should-sinon is outdated, so we cannot use it with calledAfter :-(
+            should(request.removeAllListeners.calledAfter(request.unpipe)).be.true();
+            should(request.resume).calledOnce();
+            should(request.resume.calledAfter(request.removeAllListeners)).be.true();
+            should(writable.removeAllListeners).calledOnce();
+            should(writable.end).calledOnce();
+            should(writable.end.calledAfter(writable.removeAllListeners)).be.true();
+
+            // pipes should be closed manually
+            should(gunzipMock.close).calledOnce();
+
+            should(protocol._replyWithError)
+              .be.calledWithMatch(/^[0-9a-z-]+$/, {
+                url: request.url,
+                method: request.method
+              },
+              response,
+              {
+                message: 'Maximum HTTP request size exceeded'
+              });
+            done();
+          } catch (e) {
+            done(e);
           }
         });
 
-      const dataCB = request.on.firstCall.args[1];
-      dataCB('chunk1');
-      dataCB('chunk2');
-      dataCB('chunk3');
-
-      request.on.lastCall.args[1]();
-    });
-
-    it('should handle valid x-www-form-urlencoded request', (done) => {
-      const resetSendRequest = HttpProxy.__set__('sendRequest', (_proxy, connId, res, pload) => {
-        resetSendRequest();
-        should(pload.content).be.empty('');
-        should(pload.json.foo).be.exactly('bar');
-        should(pload.json.baz).be.exactly('1234');
-        done();
+        writable.write('a slightly too big chunk');
       });
 
-      let cb = HttpProxy.__get__('http').createServer.firstCall.args[0];
+      it('should reply with error if the content type is unsupported', () => {
+        request.headers['content-type'] = 'foo/bar';
 
-      request.headers['content-type'] = 'application/x-www-form-urlencoded';
+        onRequest(request, response);
 
-      cb(request, response);
+        should(request.resume).be.calledOnce();
+        should(protocol._replyWithError)
+          .be.calledOnce()
+          .be.calledWithMatch(/^[0-9a-w-]+$/, {
+            url: request.url,
+            method: request.method
+          },
+          response,
+          {
+            message: 'Unsupported content type: foo/bar'
+          });
+      });
 
-      let dataCB = request.on.firstCall.args[1];
-      dataCB('foo=bar&baz=1234');
-
-      let endCB = request.on.lastCall.args[1];
-      endCB();
-    });
-
-    it('should reply with error if the binary file size sent exceeds the maxFormFileSize', () => {
-      HttpProxy.__with__({
-        replyWithError: sandbox.spy()
-      })(() => {
-        const cb = HttpProxy.__get__('http').createServer.firstCall.args[0];
-
-        httpProxy.maxFormFileSize = 2;
+      it('should reply with error if the binary file size sent exceeds the maxFormFileSize', () => {
+        protocol.maxFormFileSize = 2;
         request.headers['content-type'] = 'multipart/form-data; boundary=---------------------------165748628625109734809700179';
-        cb(request, response);
+        onRequest(request, response);
 
-        const dataCB = request.on.firstCall.args[1];
+        should(request.pipe).calledOnce().calledWith(sinon.match.instanceOf(HttpFormDataStream));
+        const writable = request.pipe.firstCall.args[0];
 
-        dataCB(multipart);
+        sinon.spy(writable, 'removeAllListeners');
+        sinon.spy(writable, 'end');
 
-        should(request.removeAllListeners).be.calledTwice();
-        should(HttpProxy.__get__('replyWithError'))
-          .be.calledWithMatch(proxy, /^[0-9a-z-]+$/, {url: request.url, method: request.method}, response, {message: 'Error: maximum HTTP file size exceeded'});
+        should(request.on).calledOnce().calledWith('error', sinon.match.func);
+
+        writable.write(multipart);
+
+        should(request.emit)
+          .calledOnce()
+          .calledWith('error', sinon.match.instanceOf(SizeLimitError));
+
+        should(request.emit.firstCall.args[1].message).be.eql('Maximum HTTP file size exceeded');
       });
     });
 
-    it('should handle valid multipart/form-data request', (done) => {
-      const
-        resetSendRequest = HttpProxy.__set__('sendRequest', (_proxy, connId, res, pload) => {
-          resetSendRequest();
-          should(pload.content).be.empty('');
-          should(pload.json.foo).be.exactly('bar');
-          should(pload.json.baz.filename).be.exactly('test-multipart.txt');
-          should(pload.json.baz.mimetype).be.exactly('text/plain');
-          should(pload.json.baz.file).be.exactly('WU9MTwoKCg==');
-          done();
-        });
+    describe('#_sendRequest', () => {
+      let payload;
 
-      let cb = HttpProxy.__get__('http').createServer.firstCall.args[0];
+      beforeEach(() => {
+        payload = {
+          requestId: 'requestId',
+          url: 'url?pretty',
+          method: 'getpostput',
+          json: {
+            some: 'value'
+          }
+        };
+        protocol.init(proxy);
+      });
 
-      request.headers['content-type'] = 'multipart/form-data; boundary=---------------------------165748628625109734809700179';
+      it('should call kuzzle http router and send the client the response back', () => {
+        protocol._sendRequest('connectionId', response, payload);
 
-      cb(request, response);
+        should(proxy.broker.brokerCallback).be.calledOnce();
 
-      let dataCB = request.on.firstCall.args[1];
-      dataCB(multipart);
+        const cb = proxy.broker.brokerCallback.firstCall.args[4];
+        const result = {
+          content: {
+            requestId: 'requestId',
+            status: 444,
+            error: null,
+            controller: null,
+            action: null,
+            collection: null,
+            index: null,
+            volatile: null,
+            result: 'content'
+          },
+          status: 444,
+          headers: {
+            'x-foo': 'bar'
+          }
+        };
 
-      let endCB = request.on.lastCall.args[1];
-      endCB();
-    });
-  });
+        cb(null, result);
 
-  describe('#sendRequest', () => {
-    let
-      sendRequest,
-      payload,
-      res,
-      response;
+        should(response.setHeader)
+          .be.calledOnce()
+          .be.calledWith('x-foo', 'bar');
 
-    beforeEach(() => {
-      sendRequest = HttpProxy.__get__('sendRequest');
+        should(response.writeHead)
+          .be.calledOnce()
+          .be.calledWith(444);
 
-      payload = {
-        requestId: 'requestId',
-        url: 'url?pretty'
-      };
-      response = {
-        end: sinon.spy(),
-        setHeader: sinon.spy(),
-        writeHead: sinon.spy()
-      };
+        const expected = {
+          requestId: 'requestId',
+          status: 444,
+          error: null,
+          controller: null,
+          action: null,
+          collection: null,
+          index: null,
+          volatile: null,
+          result: 'content'
+        };
 
-      res = HttpProxy.__set__({
-        replyWithError: sinon.spy()
+        should(response.end)
+          .be.calledOnce()
+          .be.calledWith(Buffer.from(JSON.stringify(expected, undefined, 2)));
+      });
+
+      it('should output buffer raw result', () => {
+        protocol._sendRequest('connectionId', response, payload);
+
+        const cb = proxy.broker.brokerCallback.firstCall.args[4];
+        const content = Buffer.from('test');
+        const result = {
+          content,
+          raw: true,
+          status: 444
+        };
+
+        cb(null, result);
+
+        // Buffer.from(content) !== content
+        const sent = response.end.firstCall.args[0];
+
+        should(content.toString())
+          .eql(sent.toString());
+      });
+
+      it('should output a stringified buffer as a raw buffer result', () => {
+        protocol._sendRequest('connectionId', response, payload);
+        const cb = proxy.broker.brokerCallback.firstCall.args[4];
+
+        const content = JSON.parse(JSON.stringify(Buffer.from('test')));
+        const result = {
+          content,
+          raw: true,
+          status: 444
+        };
+
+        cb(null, result);
+
+        const sent = response.end.firstCall.args[0];
+
+        should(sent)
+          .be.an.instanceof(Buffer);
+        should(sent.toString())
+          .eql('test');
+      });
+
+      it('should output serialized JS objects marked as raw', () => {
+        protocol._sendRequest('connectionId', response, payload);
+        const cb = proxy.broker.brokerCallback.firstCall.args[4];
+
+        const result = {
+          content: [{foo: 'bar'}],
+          raw: true
+        };
+
+        cb(null, result);
+
+        should(response.end)
+          .be.calledWith(Buffer.from(JSON.stringify([{foo: 'bar'}])));
+      });
+
+      it('should output scalar content as-is if marked as raw', () => {
+        protocol._sendRequest('connectionId', response, payload);
+        const cb = proxy.broker.brokerCallback.firstCall.args[4];
+
+        const result = {
+          content: 'content',
+          raw: true
+        };
+
+        cb(null, result);
+
+        should(response.end)
+          .be.calledOnce()
+          .be.calledWithExactly(Buffer.from('content'));
+      });
+
+      it('should compress the outgoing message with deflate if asked to', () => {
+        payload.headers = {'accept-encoding': 'identity, foo, bar, identity, qux, deflate, baz'};
+        protocol._sendRequest('connectionId', response, payload);
+
+        const cb = proxy.broker.brokerCallback.firstCall.args[4];
+
+        const result = {content: 'content'};
+
+        cb(null, result);
+
+        should(response.setHeader).calledWith('Content-Encoding', 'deflate');
+        should(zlibstub.deflate).calledOnce();
+        should(zlibstub.gzip).not.called();
+      });
+
+      it('should compress the outgoing message with gzip if asked to', () => {
+        payload.headers = {'accept-encoding': 'identity, foo, bar, identity, qux, gzip, baz'};
+        protocol._sendRequest('connectionId', response, payload);
+
+        const cb = proxy.broker.brokerCallback.firstCall.args[4];
+
+        const result = {content: 'content'};
+
+        cb(null, result);
+
+        should(response.setHeader).calledWith('Content-Encoding', 'gzip');
+        should(zlibstub.deflate).not.called();
+        should(zlibstub.gzip).calledOnce();
+      });
+
+      it('should not compress if no suitable algorithm is found within the accept-encoding list', () => {
+        payload.headers = {'accept-encoding': 'identity, foo, bar, identity, qux, baz'};
+        protocol._sendRequest('connectionId', response, payload);
+
+        const cb = proxy.broker.brokerCallback.firstCall.args[4];
+
+        const result = {content: 'content'};
+
+        cb(null, result);
+
+        should(response.setHeader).not.calledWith('Content-Encoding', sinon.match.string);
+        should(zlibstub.deflate).not.called();
+        should(zlibstub.gzip).not.called();
+      });
+
+      it('should prefer gzip over deflate if both algorithm are accepted', () => {
+        payload.headers = {'accept-encoding': 'deflate,deflate,DEFLATE,dEfLaTe, GZiP, DEFLATE,deflate'};
+        protocol._sendRequest('connectionId', response, payload);
+
+        const cb = proxy.broker.brokerCallback.firstCall.args[4];
+
+        const result = {content: 'content'};
+
+        cb(null, result);
+
+        should(response.setHeader).calledWith('Content-Encoding', 'gzip');
+        should(zlibstub.deflate).not.called();
+        should(zlibstub.gzip).calledOnce();
+      });
+
+      it('should reply with an error if compressing fails', () => {
+        payload.headers = {'accept-encoding': 'gzip'};
+        zlibstub.gzip.yields(new Error('foobar'));
+        sinon.stub(protocol, '_replyWithError');
+        protocol._sendRequest('connectionId', response, payload);
+
+        const cb = proxy.broker.brokerCallback.firstCall.args[4];
+
+        const result = {content: 'content'};
+
+        cb(null, result);
+
+        should(protocol._replyWithError)
+          .be.calledOnce()
+          .be.calledWithMatch('connectionId',
+            payload,
+            response,
+            {message: 'foobar'});
+
+        should(protocol._replyWithError.firstCall.args[3]).be.instanceOf(BadRequestError);
+        should(response.setHeader).calledWith('Content-Encoding', 'gzip');
+        should(zlibstub.deflate).not.called();
+        should(zlibstub.gzip).calledOnce();
       });
     });
 
-    afterEach(() => {
-      res();
-    });
-
-    it('should reply with error if one is received from Kuzzle', () => {
-      const error = new Error('error');
-
-      sendRequest(proxy, 'connectionId', response, payload);
-
-      should(proxy.broker.brokerCallback)
-        .be.calledOnce()
-        .be.calledWith('httpRequest', payload.requestId, 'connectionId', payload);
-
-      const brokerCb = proxy.broker.brokerCallback.firstCall.args[4];
-
-      brokerCb(error);
-
-      should(HttpProxy.__get__('replyWithError'))
-        .be.calledOnce()
-        .be.calledWith(proxy, 'connectionId', payload, response, error);
-    });
-
-    it('should output the result', () => {
-      const result = {
-        headers: {
-          'x-foo': 'bar'
-        },
-        status: 'status',
-        content: 'content'
-      };
-
-      sendRequest(proxy, 'connectionId', response, payload);
-      const cb = proxy.broker.brokerCallback.firstCall.args[4];
-
-      cb(undefined, result);
-
-      should(response.setHeader)
-        .be.calledOnce()
-        .be.calledWith('x-foo', 'bar');
-
-      should(response.writeHead)
-        .be.calledOnce()
-        .be.calledWith('status');
-
-      should(response.end)
-        .be.calledOnce()
-        .be.calledWith(JSON.stringify(result.content, undefined, 2));
-    });
-
-    it('should output buffer raw result', () => {
-      const result = {
-        raw: true,
-        status: 'status',
-        content: new Buffer('test')
-      };
-
-      sendRequest(proxy, 'connectionId', response, payload);
-      const cb = proxy.broker.brokerCallback.firstCall.args[4];
-
-      cb(undefined, result);
-
-      should(response.end)
-        .be.calledOnce()
-        .be.calledWith(result.content);
-    });
-
-    it('should output a stringified buffer as a raw buffer result', () => {
-      const result = {
-        raw: true,
-        status: 'status',
-        content: JSON.parse(JSON.stringify(new Buffer('test')))
-      };
-
-      sendRequest(proxy, 'connectionId', response, payload);
-      const cb = proxy.broker.brokerCallback.firstCall.args[4];
-
-      cb(undefined, result);
-
-      should(response.end)
-        .be.calledOnce()
-        .be.calledWithMatch(Buffer.from(result.content));
-    });
-
-    it('should output serialized JS objects marked as raw', () => {
-      const result = {
-        raw: true,
-        status: 'status',
-        content: [{foo: 'bar'}]
-      };
-
-      sendRequest(proxy, 'connectionId', response, payload);
-      const cb = proxy.broker.brokerCallback.firstCall.args[4];
-
-      cb(undefined, result);
-
-      should(response.end)
-        .be.calledWith(JSON.stringify(result.content));
-    });
-
-    it('should output scalar content as-is if marked as raw', () => {
-      const result = {
-        raw: true,
-        status: 'status',
-        content: 'content'
-      };
-
-      sendRequest(proxy, 'connectionId', response, payload);
-      const cb = proxy.broker.brokerCallback.firstCall.args[4];
-
-      cb(undefined, result);
-
-      should(response.end)
-        .be.calledOnce()
-        .be.calledWithExactly(result.content);
-    });
   });
 
-  describe('#replyWithError', () => {
-    let
-      replyWithError,
-      response;
-
+  describe('#_replyWithError', () => {
     beforeEach(() => {
-      replyWithError = HttpProxy.__get__('replyWithError');
-      response = {
-        end: sinon.spy(),
-        writeHead: sinon.spy()
-      };
+      proxy.logAccess = sinon.spy();
+      protocol.init(proxy);
     });
 
     it('should log the access and reply with error', () => {
-      const error = new Error('test');
-      error.status = 'status';
+      const
+        error = new KuzzleError('test'),
+        connectionId = 'connectionId',
+        payload = {requestId: 'foobar'};
+      error.status = 123;
 
-      replyWithError(proxy, 'connectionId', 'payload', response, error);
+      protocol._replyWithError(connectionId, payload, response, error);
 
       should(proxy.logAccess)
         .be.calledOnce()
-        .be.calledWithMatch('connectionId', 'payload', error, {
+        .be.calledWithMatch(connectionId, payload, error, {
           raw: true,
           content: JSON.stringify(error)
         });
 
       should(response.writeHead)
         .be.calledOnce()
-        .be.calledWith('status', {
+        .be.calledWith(123, {
           'Content-Type': 'application/json',
           'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Methods' : 'GET,POST,PUT,DELETE,OPTIONS',
-          'Access-Control-Allow-Headers': 'Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With'
+          'Access-Control-Allow-Methods' : 'GET,POST,PUT,PATCH,DELETE,HEAD,OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With, Content-Length, Content-Encoding, X-Kuzzle-Volatile'
         });
     });
 
-    it('should remove pending request from clientConnectionStore', () => {
+    it('should remove pending request from clients', () => {
       const error = new Error('test');
       error.status = 'status';
 
-      replyWithError(proxy, 'connectionId', 'payload', response, error);
+      protocol._replyWithError('connectionId', {}, response, error);
 
       should(proxy.clientConnectionStore.remove)
-        .be.calledOnce()
-        .be.calledWithMatch('connectionId');
+        .calledOnce()
+        .calledWith('connectionId');
     });
   });
-
 });
-
