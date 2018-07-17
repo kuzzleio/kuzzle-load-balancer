@@ -3,16 +3,18 @@
 const
   proxyquire = require('proxyquire'),
   should = require('should'),
-  sinon = require('sinon'),
-  fakeRequest = {payload: {aRequest: 'Object'}, connectionId: 'aGoodId', protocol: 'websocket', headers: {foo: 'bar'}},
-  clientConnectionStub = function(protocol, ips, headers) {
-    return {protocol: protocol, id: 'id', headers: headers};
-  },
-  Websocket = proxyquire('../../../lib/service/protocol/Websocket', {
-    '../../core/clientConnection': clientConnectionStub,
-  });
+  sinon = require('sinon');
 
 describe('/service/protocol/Websocket', function () {
+  const
+    connection = {id: 'aGoodId', protocol: 'websocket', headers: {foo: 'bar'}},
+    clientConnectionStub = function() {
+      return connection;
+    },
+    Websocket = proxyquire('../../../lib/service/protocol/Websocket', {
+      '../../core/clientConnection': clientConnectionStub,
+    });
+
   let
     proxy,
     ws,
@@ -86,10 +88,10 @@ describe('/service/protocol/Websocket', function () {
       clientSocketMock = {
         on: onClientSpy,
         close: sinon.stub(),
+        _socket: {
+          remoteAddress: 'ip'
+        },
         upgradeReq: {
-          connection: {
-            remoteAddress: 'ip'
-          },
           url: '/',
           headers: {
             'X-Foo': 'bar',
@@ -135,7 +137,7 @@ describe('/service/protocol/Websocket', function () {
       clientMessageStub.resetHistory();
       should(Object.keys(ws.connectionPool).length).be.eql(1);
 
-      should(ws.connectionPool.id)
+      should(ws.connectionPool.aGoodId)
         .match({
           alive: true,
           socket: clientSocketMock,
@@ -387,12 +389,7 @@ describe('/service/protocol/Websocket', function () {
   });
 
   describe('#onMessage', () => {
-    const
-      goodConnection = {
-        id: goodId,
-        headers: {foo: 'bar'}
-      },
-      badConnection = {id: badId};
+    const badConnection = {id: badId};
 
     beforeEach(() => {
       ws.init(proxy);
@@ -421,8 +418,8 @@ describe('/service/protocol/Websocket', function () {
     it('should reply with error if the actual data sent exceeds the maxRequestSize', () => {
       ws.connectionPool = {
         [goodId]: {
+          connection,
           alive: true,
-          connection: goodConnection,
           socket: {
             send: sendSpy
           },
@@ -431,7 +428,7 @@ describe('/service/protocol/Websocket', function () {
       };
       proxy.httpProxy.maxRequestSize = 2;
 
-      ws.onClientMessage(goodConnection, JSON.stringify('aPayload'));
+      ws.onClientMessage(connection, JSON.stringify('aPayload'));
 
       should(sendSpy)
         .be.calledOnce()
@@ -441,8 +438,8 @@ describe('/service/protocol/Websocket', function () {
     it('should execute the request if client and packet are ok', function () {
       ws.connectionPool = {
         [goodId]: {
+          connection,
           alive: true,
-          connection: goodConnection,
           socket: {
             send: sendSpy
           },
@@ -450,11 +447,13 @@ describe('/service/protocol/Websocket', function () {
         }
       };
 
-      ws.onClientMessage(goodConnection, JSON.stringify({aRequest: 'Object'}));
+      const payload = {aRequest: 'Object'};
+
+      ws.onClientMessage(connection, JSON.stringify(payload));
 
       should(proxy.router.execute)
         .be.calledOnce()
-        .be.calledWith(fakeRequest);
+        .be.calledWith(payload, connection);
 
       should(sendSpy)
         .be.calledOnce()
@@ -467,8 +466,8 @@ describe('/service/protocol/Websocket', function () {
     it('should forward an exception to the client if the incoming message is not in JSON format', () => {
       ws.connectionPool = {
         [goodId]: {
+          connection,
           alive: true,
-          connection: goodConnection,
           socket: {
             send: sendSpy
           },
@@ -476,7 +475,7 @@ describe('/service/protocol/Websocket', function () {
         }
       };
 
-      ws.onClientMessage(goodConnection, 'foobar');
+      ws.onClientMessage(connection, 'foobar');
       should(proxy.router.execute.called).be.false();
       should(sendSpy).be.calledOnce();
       should(JSON.parse(sendSpy.firstCall.args[0]).status).be.equal(400);
@@ -485,8 +484,8 @@ describe('/service/protocol/Websocket', function () {
     it('should forward an error message to the client if a request cannot be instantiated', () => {
       ws.connectionPool = {
         [goodId]: {
+          connection,
           alive: true,
-          connection: goodConnection,
           socket: {
             send: sendSpy
           },
@@ -495,7 +494,7 @@ describe('/service/protocol/Websocket', function () {
       };
 
       proxy.router.execute = sinon.stub().throws({message: 'error'});
-      ws.onClientMessage(goodConnection, JSON.stringify({requestId: 'foobar', index: 'foo', controller: 'bar', body: ['this causes an error']}));
+      ws.onClientMessage(connection, JSON.stringify({requestId: 'foobar', index: 'foo', controller: 'bar', body: ['this causes an error']}));
       should(proxy.router.execute).be.calledOnce();
       should(sendSpy.calledOnce).be.true();
       should(JSON.parse(sendSpy.firstCall.args[0])).match({

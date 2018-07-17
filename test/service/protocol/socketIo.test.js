@@ -4,35 +4,36 @@ const
   proxyquire = require('proxyquire'),
   should = require('should'),
   sinon = require('sinon'),
-  EventEmitter = require('events'),
-  fakeRequest = {payload: {aRequest: 'Object'}, connectionId: 'connectionId', protocol: 'socketio', headers: {foo: 'bar'}},
-  emitStub = sinon.stub(),
-  clientConnectionStub = function(protocol, ips, headers) {
-    return {protocol: protocol, id: 'connectionId', headers: headers};
-  },
-  SocketIo = proxyquire('../../../lib/service/protocol/SocketIo', {
-    '../../core/clientConnection': clientConnectionStub,
-    'socket.io': () => {
-      const emitter = new EventEmitter();
-
-      emitter.id = 'connectionId';
-      emitter.set = () => {};
-      emitter.to = sinon.stub().returns({
-        emit: emitStub
-      });
-
-      emitter.sockets = { connected: {} };
-      emitter.sockets.connected.connectionId = {
-        join: sinon.spy(),
-        leave: sinon.spy(),
-        emit: sinon.spy()
-      };
-
-      return emitter;
-    }
-  });
+  EventEmitter = require('events');
 
 describe('/service/protocol/SocketIo', function () {
+  const
+    connection = {id: 'connectionId', protocol: 'socketio', headers: {foo: 'bar'}},
+    emitStub = sinon.stub(),
+    clientConnectionStub = function() {
+      return connection;
+    },
+    SocketIo = proxyquire('../../../lib/service/protocol/SocketIo', {
+      '../../core/clientConnection': clientConnectionStub,
+      'socket.io': () => {
+        const emitter = new EventEmitter();
+
+        emitter.id = 'connectionId';
+        emitter.set = () => {};
+        emitter.to = sinon.stub().returns({
+          emit: emitStub
+        });
+
+        emitter.sockets = { connected: {} };
+        emitter.sockets.connected.connectionId = {
+          join: sinon.spy(),
+          leave: sinon.spy(),
+          emit: sinon.spy()
+        };
+
+        return emitter;
+      }
+    });
   let
     proxy,
     io,
@@ -80,7 +81,7 @@ describe('/service/protocol/SocketIo', function () {
       },
       router: {
         newConnection: sinon.spy(),
-        removeConnection: sinon.stub().returns(Promise.resolve({a: 'connection'})),
+        removeConnection: sinon.stub().resolves({a: 'connection'}),
         execute: sinon.stub().yields({requestId: 'foo', content: {requestId: 'foo'}})
       },
       config: {
@@ -148,8 +149,7 @@ describe('/service/protocol/SocketIo', function () {
       clientDisconnectionStub.resetHistory();
       clientMessageStub.resetHistory();
       should(Object.keys(io.sockets).length).be.eql(1);
-      should(io.sockets.connectionId)
-        .match(clientSocketMock);
+      should(io.sockets.connectionId).match(clientSocketMock);
     });
 
     it('should reject and close the socket if creating a connection fails', () => {
@@ -252,12 +252,7 @@ describe('/service/protocol/SocketIo', function () {
   });
 
   describe('#onMessage', function () {
-    const
-      connection = {
-        id: 'connectionId',
-        headers: {foo: 'bar'}
-      },
-      badConnection = {id: 'badConnectionId'};
+    const badConnection = {id: 'badConnectionId'};
 
     beforeEach(() => {
       io.init(proxy);
@@ -289,11 +284,12 @@ describe('/service/protocol/SocketIo', function () {
     });
 
     it('should execute the request if client and packet are ok', function () {
-      io.onClientMessage(clientSocketMock, connection, {aRequest: 'Object'});
+      const payload = {aRequest: 'Object'};
+      io.onClientMessage(clientSocketMock, connection, payload);
 
       should(proxy.router.execute)
         .be.calledOnce()
-        .be.calledWith(fakeRequest);
+        .be.calledWith(payload, connection);
 
       should(io.io.to)
         .be.calledOnce()

@@ -6,8 +6,8 @@
   "scripts": {
     "start": "node index.js",
     "lint": "eslint --max-warnings=0 ./lib ./test",
-    "test": "npm run --silent lint && npm run unit-testing --coverage",
-    "unit-testing": "istanbul test _mocha",
+    "test": "npm run --silent lint && npm run unit-testing",
+    "unit-testing": "nyc --reporter=text-summary --reporter=lcov mocha",
     "codecov": "cat ./coverage/lcov.info | ./node_modules/.bin/codecov"
   },
   "keywords": [
@@ -40,9 +40,9 @@
   "devDependencies": {
     "codecov.io": "^0.1.6",
     "eslint": "5.1.0",
-    "istanbul": "0.4.5",
     "mocha": "5.2.0",
     "mock-require": "^3.0.2",
+    "nyc": "^12.0.2",
     "proxyquire": "^2.0.1",
     "rewire": "4.0.1",
     "should": "13.2.1",
