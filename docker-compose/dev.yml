@@ -2,7 +2,7 @@ version: '3'
 
 services:
   proxy:
-    image: kuzzleio/dev
+    image: kuzzleio/core-dev
     command: sh -c 'chmod 755 /run.sh && /run.sh'
     volumes:
       - "..:/var/app"
