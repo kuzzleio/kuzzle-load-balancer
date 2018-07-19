@@ -2,6 +2,11 @@ sudo: required
 
 jdk: oraclejdk8
 
+env:
+  global:
+    # DockerHub password for kuzzleteam account
+    secure: "PWoQ08Yk3MlhmcWZFsT+Wn7p7labx2ikWWbC42Is7Zh5ajjMuVk3RSza+t1Kipm1lxPszU3b7WcrXeAK3aGjsSXxUACmo0h6xD8YByL7Twkn/VuX3f3FoL5hR4Kux8psjy+yOVwprTbYXKJ+VuOYqhHhZrxVjseBCjPi7Lt4gKQJXtNikQH+soTzpspzLSWGu+c86QIHU7VBmNMyve7LtsxjC2Cu5kpg1N4XxTvWDAjSkouFSSgiMKJLho0IjXldLOLcUuhQw4fxqWk/dPSwii6p1OHQT/WpLettohbkSlmK1YbR0XwkPmKCK9EKQs5buXNvhSyvH/fKUUMAwmTfqvPD8Q6degOQN+m+6MN9tsOXK5gATOYWpV5pYmtoW587Q4+lGsTdB9AlRKU6mko3qCC9GGIGPNm+8sH+EmSDUksvTNE2829R57s5r0N4fHlCuxF2cbzrLukVEw498iSmCWSu4WM8228yI4f6f7v/0vLJpSs7YZA58KiAdizvAiOu02C9NI/2rVlc4Cw9wMgZMYhtndpSFz7kjnVqJc4uI0NctwJCLVzRhpV8XX28mUfcOkKVXCCRLV6uLyaunp4cccsouSyvrp/AbwArlx5TRnzd6bTVRmEjoNRSxfBN1Lpg9Hvc4gecdN4tm+Gzm1E4d9dUl3G8CjoekmGeMNBXSoI="
+
 services:
   - docker
 
@@ -14,3 +19,7 @@ notifications:
 
 addons:
   sonarqube: true
+
+after_success:
+  - docker login -u kuzzleteam -p $DOCKER_PASSWORD
+  - bash build-docker-images.sh
