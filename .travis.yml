@@ -1,20 +1,16 @@
 sudo: required
+
 jdk: oraclejdk8
+
 services:
   - docker
+
 script:
-  - >
-    docker run -v $(pwd):/var/app
-    -e TRAVIS=$TRAVIS
-    -e TRAVIS_COMMIT=$TRAVIS_COMMIT
-    -e TRAVIS_JOB_NUMBER=$TRAVIS_JOB_NUMBER
-    -e TRAVIS_BRANCH=$TRAVIS_BRANCH
-    -e TRAVIS_JOB_ID=$TRAVIS_JOB_ID
-    -e TRAVIS_PULL_REQUEST=$TRAVIS_PULL_REQUEST
-    -e TRAVIS_REPO_SLUG=$TRAVIS_REPO_SLUG
-    kuzzleio/dev /bin/sh /var/app/docker-compose/scripts/run-test.sh
+  - bash test/travis-bin/run-tests.sh
   - bash test/travis-bin/sonar.sh
+
 notifications:
   email: false
+
 addons:
   sonarqube: true

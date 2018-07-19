@@ -1,4 +1,4 @@
-version: '2'
+version: '3'
 
 services:
   proxy:
@@ -40,4 +40,3 @@ services:
       - xpack.monitoring.enabled=false
       - xpack.graph.enabled=false
       - xpack.watcher.enabled=false
-
