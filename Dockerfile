@@ -37,8 +37,8 @@ COPY ./ /var/app/
 
 WORKDIR /var/app
 
-RUN  npm install --unsafe \
-  && npm rebuild all --unsafe \
+RUN  npm install --unsafe-perm \
+  && npm rebuild all --unsafe-perm \
   && sh /var/app/docker-compose/scripts/install-plugins.sh
 
 ################################################################################
