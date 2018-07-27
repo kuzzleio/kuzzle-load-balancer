@@ -5,19 +5,20 @@ const
   should = require('should'),
   sinon = require('sinon'),
   Request = require('kuzzle-common-objects').Request,
-  requestStub = sinon.spy(function () {
-    return new Request({requestId: 'requestId', foo: 'bar'}, {connectionId: 'connectionId', protocol: 'protocol'});
-  }),
   {
     InternalError: KuzzleInternalError,
     ServiceUnavailableError
-  } = require('kuzzle-common-objects').errors,
-  Router = proxyquire('../../lib/service/Router', {
-    'kuzzle-common-objects': {Request: requestStub}
-  });
+  } = require('kuzzle-common-objects').errors;
 
 describe('#Test: service/Router', function () {
-  const sandbox = sinon.createSandbox();
+  const
+    requestStub = sinon.spy(() => new Request(
+      {requestId: 'requestId', foo: 'bar'},
+      {connection: {id: 'connectionId', protocol: 'protocol'}}
+    )),
+    Router = proxyquire('../../lib/service/Router', {
+      'kuzzle-common-objects': {Request: requestStub}
+    });
   let
     proxy,
     router;
@@ -41,7 +42,6 @@ describe('#Test: service/Router', function () {
   });
 
   afterEach(() => {
-    sandbox.restore();
     requestStub.resetHistory();
   });
 
@@ -78,10 +78,11 @@ describe('#Test: service/Router', function () {
 
   describe('#execute', () => {
     const
-      request = {
-        payload: {requestId: 'requestId', foo: 'bar'},
-        connectionId: 'connectionId',
-        protocol: 'protocol'
+      payload = {requestId: 'requestId', foo: 'bar'},
+      connection = {
+        id: 'connectionId',
+        protocol: 'protocol',
+        ips: ['foo']
       };
 
     it('should call the broker callback with a cb that properly handles errors back from Kuzzle', () => {
@@ -89,13 +90,13 @@ describe('#Test: service/Router', function () {
         cb = sinon.spy(),
         error = new KuzzleInternalError('test');
 
-      router.execute(request, cb);
+      router.execute(payload, connection, cb);
       should(requestStub).be.calledOnce();
-      should(requestStub).be.calledWith(request.payload, {connectionId: request.connectionId, protocol: request.protocol});
+      should(requestStub).be.calledWith(payload, {connection});
 
       should(proxy.broker.brokerCallback)
         .be.calledOnce()
-        .be.calledWithMatch('request', 'requestId', request.connectionId, {data: request.payload});
+        .be.calledWithMatch('request', 'requestId', connection.id, {data: payload});
 
       const brokerCb = proxy.broker.brokerCallback.firstCall.args[4];
 
@@ -110,9 +111,9 @@ describe('#Test: service/Router', function () {
       const
         cb = sinon.spy();
 
-      router.execute(request, cb);
+      router.execute(payload, connection, cb);
       should(requestStub).be.calledOnce();
-      should(requestStub).be.calledWith(request.payload, {connectionId: request.connectionId, protocol: request.protocol});
+      should(requestStub).be.calledWith(payload, {connection});
 
       const brokerCb = proxy.broker.brokerCallback.firstCall.args[4];
 
